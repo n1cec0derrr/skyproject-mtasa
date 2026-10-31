@@ -25,16 +25,8 @@
 #include <cctype>
 #include <cstring>
 
-#if !defined(__cpp_lib_filesystem) || __cpp_lib_filesystem < 201703L
-    #ifndef _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-        #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING 1
-    #endif
-    #include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#else
-    #include <filesystem>
+#include <filesystem>
 namespace fs = std::filesystem;
-#endif
 
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -655,17 +647,17 @@ SString SharedUtil::GetSystemTempPath()
 
 SString SharedUtil::GetMTADataPath()
 {
-    return PathJoin(GetSystemCommonAppDataPath(), GetProductCommonDataDir(), GetMajorVersionString());
+    return PathJoin(GetMTASABaseDir(), "userdata", GetMajorVersionString());
 }
 
 SString SharedUtil::GetMTADataPathCommon()
 {
-    return PathJoin(GetSystemCommonAppDataPath(), GetProductCommonDataDir(), "Common");
+    return PathJoin(GetMTASABaseDir(), "userdata", "Common");
 }
 
 SString SharedUtil::GetMTATempPath()
 {
-    return PathJoin(GetSystemTempPath(), "MTA" + GetMajorVersionString());
+    return PathJoin(GetMTASABaseDir(), "userdata", "temp");
 }
 
 // C:\Program Files\gta_sa.exe

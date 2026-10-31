@@ -41,7 +41,7 @@ enum eCoreVersion
 };
 
 #ifndef WITH_TIMING_CHECKPOINTS
-    #define WITH_TIMING_CHECKPOINTS 1  // Comment this line to remove timing checkpoint code
+    #define WITH_TIMING_CHECKPOINTS 0  // Comment this line to remove timing checkpoint code
 #endif
 
 #if WITH_TIMING_CHECKPOINTS

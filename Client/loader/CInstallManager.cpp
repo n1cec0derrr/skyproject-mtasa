@@ -1512,7 +1512,9 @@ SString CInstallManager::_ProcessLayoutChecks()
         SString strMTADataPath = i ? GetMTADataPathCommon() : GetMTADataPath();
 
         if (!DirectoryExists(strMTADataPath))
-            ShowLayoutError("[Data directory not present]");  // Can't find directory
+            MakeSureDirExists(strMTADataPath + "/");
+        if (!DirectoryExists(strMTADataPath))
+            ShowLayoutError("[Data directory not present]");
 
         SString strTestFilePath = PathJoin(strMTADataPath, "testdir", "testfile.txt");
 

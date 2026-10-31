@@ -449,7 +449,8 @@ auto GetGameBaseDirectory() -> fs::path
 
 auto GetGameLaunchDirectory() -> fs::path
 {
-    static const auto directory = fs::path{FromUTF8(GetMTADataPath())} / "GTA San Andreas";
+    static const auto directory = fs::path{FromUTF8(GetMTASABaseDir())} / "runtime" / "GTA San Andreas";
+
     return directory;
 }
 
@@ -797,7 +798,15 @@ static const SString DoUserAssistedSearch() noexcept
 ///////////////////////////////////////////////////////////////
 ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 {
-    // Registry places to look
+    // Sky Project Portable: prefer GTA installed next to the launcher.
+    const SString portableGamePath = GetLaunchPath();
+    if (FileExists(PathJoin(portableGamePath, MTA_GTA_KNOWN_FILE_NAME)))
+    {
+        strOutResult = portableGamePath;
+        return GAME_PATH_OK;
+    }
+
+    // Legacy fallback for non-portable layouts.
     std::vector<SString> pathList;
 
     // Try HKLM "SOFTWARE\\Multi Theft Auto: San Andreas All\\Common\\"

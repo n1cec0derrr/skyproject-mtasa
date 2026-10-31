@@ -323,7 +323,7 @@ CDuplicateLineFilter<SReportLine> ms_ReportLineFilter;
 #ifdef MTA_CLIENT
 
     #define PRODUCT_REGISTRY_PATH   "Software\\Multi Theft Auto: San Andreas All"  // HKLM
-    #define PRODUCT_COMMON_DATA_DIR "MTA San Andreas All"                          // C:\ProgramData
+    #define PRODUCT_COMMON_DATA_DIR "Sky Project"                                  // C:\ProgramData
     #define TROUBLE_URL1            "https://help.multitheftauto.com/sa/trouble/?v=_VERSION_&id=_ID_&tr=_TROUBLE_"
 
     //
@@ -1136,39 +1136,39 @@ static SString MakeVersionRegistryPath(const SString& strVersion, const SString&
 // Get/set registry values for the current version
 void SharedUtil::SetRegistryValue(const SString& strPath, const SString& strName, const SString& strValue, bool bFlush)
 {
-    WriteRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath(GetMajorVersionString(), strPath), strName, strValue, bFlush);
+    WriteRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath(GetMajorVersionString(), strPath), strName, strValue, bFlush);
 }
 
 SString SharedUtil::GetRegistryValue(const SString& strPath, const SString& strName, int* iResult /*= nullptr*/)
 {
-    return ReadRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath(GetMajorVersionString(), strPath), strName, iResult);
+    return ReadRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath(GetMajorVersionString(), strPath), strName, iResult);
 }
 
 bool SharedUtil::RemoveRegistryKey(const SString& strPath)
 {
-    return DeleteRegistryKey(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath(GetMajorVersionString(), strPath));
+    return DeleteRegistryKey(HKEY_CURRENT_USER, MakeVersionRegistryPath(GetMajorVersionString(), strPath));
 }
 
 // Get/set registry values for a version
 void SharedUtil::SetVersionRegistryValue(const SString& strVersion, const SString& strPath, const SString& strName, const SString& strValue)
 {
-    WriteRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath(strVersion, strPath), strName, strValue);
+    WriteRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath(strVersion, strPath), strName, strValue);
 }
 
 SString SharedUtil::GetVersionRegistryValue(const SString& strVersion, const SString& strPath, const SString& strName, int* iResult /*= nullptr*/)
 {
-    return ReadRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath(strVersion, strPath), strName, iResult);
+    return ReadRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath(strVersion, strPath), strName, iResult);
 }
 
 // Get/set registry values for all versions (common)
 void SharedUtil::SetCommonRegistryValue(const SString& strPath, const SString& strName, const SString& strValue)
 {
-    WriteRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath("Common", strPath), strName, strValue);
+    WriteRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath("Common", strPath), strName, strValue);
 }
 
 SString SharedUtil::GetCommonRegistryValue(const SString& strPath, const SString& strName, int* iResult /*= nullptr*/)
 {
-    return ReadRegistryStringValue(HKEY_LOCAL_MACHINE, MakeVersionRegistryPath("Common", strPath), strName, iResult);
+    return ReadRegistryStringValue(HKEY_CURRENT_USER, MakeVersionRegistryPath("Common", strPath), strName, iResult);
 }
 
 //
