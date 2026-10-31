@@ -1,129 +1,88 @@
-## Multi Theft Auto: San Andreas
+<div align="center">
 
-[![Build Status](https://github.com/multitheftauto/mtasa-blue/workflows/Build/badge.svg?event=push&branch=master)](https://github.com/multitheftauto/mtasa-blue/actions?query=branch%3Amaster+event%3Apush) [![Unique servers online](https://img.shields.io/endpoint?url=https%3A%2F%2Fmultitheftauto.com%2Fapi%2Fservers-shields.io.json)](https://community.multitheftauto.com/index.php?p=servers) [![Unique players online](https://img.shields.io/endpoint?url=https%3A%2F%2Fmultitheftauto.com%2Fapi%2Fplayers-shields.io.json)](https://multitheftauto.com) [![Unique players last 24 hours](https://img.shields.io/endpoint?url=https%3A%2F%2Fmultitheftauto.com%2Fapi%2Funique-players-shields.io.json)](https://multitheftauto.com) [![Discord](https://img.shields.io/discord/278474088903606273?label=discord&logo=discord)](https://discord.com/invite/mtasa) [![Crowdin](https://badges.crowdin.net/e/f5dba7b9aa6594139af737c85d81d3aa/localized.svg)](https://multitheftauto.crowdin.com/multitheftauto)
+<img src="assets/skyproject-logo.png" alt="Sky Project" width="340" />
 
-[Multi Theft Auto](https://www.multitheftauto.com/) (MTA) is a software project that adds network play functionality to Rockstar North's Grand Theft Auto game series, in which this functionality is not originally found. It is a unique modification that incorporates an extendable network play element into a proprietary commercial single-player PC game.
+# SKY PROJECT
 
-## Introduction
+### CUSTOM MULTI THEFT AUTO: SAN ANDREAS CLIENT & SERVER
 
-Multi Theft Auto is based on code injection and hooking techniques whereby the game is manipulated without altering any original files supplied with the game. The software functions as a game engine that installs itself as an extension of the original game, adding core functionality such as networking and GUI rendering while exposing the original game's engine functionality through a scripting language.
+[![MTA:SA](https://img.shields.io/badge/MTA%3ASA-1.6.0-3B82F6?style=for-the-badge)](https://github.com/multitheftauto/mtasa-blue)
+![C++](https://img.shields.io/badge/C%2B%2B-Native-2563EB?style=for-the-badge&logo=cplusplus&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-Client-374151?style=for-the-badge&logo=windows&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-Server-374151?style=for-the-badge&logo=linux&logoColor=white)
 
-Originally founded back in early 2003 as an experimental piece of C/C++ software, Multi Theft Auto has since grown into an advanced multiplayer platform for gamers and third-party developers. Our software provides a minimal sandbox style gameplay that can be extended through the Lua scripting language in many ways, allowing servers to run custom created game modes with custom content for up to hundreds of online players.
+**[English](README.md) · [Русский](README_RU.md) · [Українська](README_UA.md)**
 
-Formerly a closed-source project, we have migrated to open-source to encourage other developers to contribute as well as showing insight into our project's source code and design for educational reasons.
+---
 
-Multi Theft Auto is built upon the "Blue" concept that implements a game engine framework. Since the class design of our game framework is based upon Grand Theft Auto's design, we are able to insert our code into the original game. The game is then heavily extended by providing new game functionality (including tweaks and crash fixes) as well as a completely new graphical interface, networking and scripting component.
+**An independent customization project built on the official MTA:SA 1.6.0 source code.**
 
-## Gameplay content
+</div>
 
-By default, Multi Theft Auto provides the minimal sandbox style gameplay of Grand Theft Auto. The gameplay can be heavily extended through the use of the Lua scripting language that has been embedded in the client and server software. Both the server hosting the game, as well as the client playing the game are capable of running and synchronizing Lua scripts. These scripts are layered on top of Multi Theft Auto's game framework that consists of many classes and functions so that the game can be adjusted in virtually any possible way.
+## ✦ About
 
-All gameplay content such as Lua scripts, images, sounds, custom models or textures is grouped into a "resource". This resource is nothing more than an archive (containing the content) and a metadata file describing the content and any extra information (such as dependencies on other resources).
+**Sky Project** is a custom client and server development project for **Multi Theft Auto: San Andreas**. This repository starts from the official **MTA:SA 1.6.0** source code and serves as the foundation for future Sky Project modifications.
 
-Using a framework based on resources has a number of advantages. It allows content to be easily transferred to clients and servers. Another advantage is that we can provide a way to import and export scripting functionality in a resource. For example, different resources can import (often basic) functionality from one or more common resources. These will then be automatically downloaded and started. Another feature worth mentioning is that server administrators can control the access to specific resources by assigning a number of different user rights to them.
+> **Development status:** Initial source baseline. Custom features and branding will be implemented progressively.
 
-## Development
+## ⚙️ Technology
 
-Our project's code repository can be found on the [multitheftauto/mtasa-blue](https://github.com/multitheftauto/mtasa-blue/) Git repository at [GitHub](https://github.com/). We are always looking for new developers, so if you're interested, here are some useful links:
+| Component | Details |
+|:--|:--|
+| Base | Multi Theft Auto: San Andreas 1.6.0 |
+| Primary language | C++ |
+| Game scripting | Lua |
+| Windows IDE | Visual Studio 2022 |
+| Client platform | Windows |
+| Server platforms | Windows / Linux |
+| Project generator | Premake 5 |
 
-* [Contributors Guide and Coding Guidelines](https://github.com/multitheftauto/mtasa-docs/blob/main/mtasa-blue/CONTRIBUTING.md)
-* [Nightly Builds](https://nightly.multitheftauto.com/)
-* [Milestones](https://github.com/multitheftauto/mtasa-blue/milestones)
+## 🛠️ Build from source
 
-### Build Instructions
+### Windows
 
-#### Windows
+**Prerequisites:** Visual Studio 2022 with C++ desktop development tools, Git, and the dependencies required by the upstream MTA build system (including legacy DirectX SDK components where needed).
 
-Prerequisites
-- [Visual Studio 2026](https://visualstudio.microsoft.com/vs/) with:
-  - Desktop development with C++
-  - Optional component *C++ MFC for latest v145 build tools (x86 & x64)* or if that's missing *C++ MFC for x64/x86 (Latest MSVC)*
-- [Microsoft DirectX SDK](https://wiki.multitheftauto.com/wiki/Compiling_MTASA#Microsoft_DirectX_SDK)
-- [Git for Windows](https://git-scm.com/download/win) (Optional)
-
-1. Execute `win-create-projects.bat`
-2. Open `MTASA.sln` in the `Build` directory
-3. Compile
-4. Execute: `win-install-data.bat`
-
-Visit the wiki article ["Compiling MTASA"](https://wiki.multitheftauto.com/wiki/Compiling_MTASA) for additional information and error troubleshooting.
-
-#### GNU/Linux
-
-You can build the MTA:SA server on GNU/Linux distributions only for x86, x86_64, armhf and arm64 CPU architectures. ARM architectures are currently in **experimental phase**, which means they're unstable, untested and may crash randomly. Beware that we only officially support building from x86_64 and that includes cross-compiling for x86, arm and arm64.
-
-**Build dependencies**
-
-*Please always read the utils/docker/Dockerfile for up-to-date build dependencies.*
-
-- make
-- GNU GCC compiler (version 10 or newer)
-- libncurses-dev
-- libmysqlclient-dev
-
-**Build instructions: Script**
-
-**Note:** This script always deletes `Build/` and `Bin/` directories and does a clean build.
-
-```sh
-$ ./linux-build.sh [--arch=x86|x64|arm|arm64] [--config=debug|release] [--cores=<n>]
-$ ./linux-install-data.sh  # optional step
+```powershell
+git clone https://github.com/n1cec0derrr/skyproject-mtasa.git
+cd skyproject-mtasa
+.\win-create-projects.bat
 ```
 
-If build architecture `--arch` is not provided, then it's taken from the environment variable `BUILD_ARCHITECTURE` (defaults to: x64).
+Open the generated Visual Studio solution and select the appropriate configuration. Refer to the upstream build documentation for additional dependencies and build instructions.
 
-If build configuration `--config` is not provided, then it's taken from the environment variable `BUILD_CONFIG` (defaults to: release).
+### Linux server
 
-If the number of jobs `--cores` is not provided, then the build will default to the amount of CPU cores.
+Linux server builds use the upstream MTA build system. Consult the repository's build scripts and upstream documentation for supported toolchains and dependencies.
 
-If you are trying to **cross-compile** to another architecture, then set `AR`, `CC`, `CXX`, `GCC_PREFIX` environment variables accordingly (see `utils/docker/Dockerfile` for an example).
+## 📁 Repository structure
 
-**Build instructions: Manual**
-
-```sh
-$ ./utils/premake5 gmake
-$ make -C Build/ config=release_x64 all
-$ ./linux-install-data.sh  # optional step
+```text
+skyproject-mtasa/
+├── Client/       # Game client
+├── Server/       # Dedicated server
+├── Shared/       # Shared code and SDK
+├── vendor/       # Third-party dependencies
+├── utils/        # Build and development tools
+└── assets/       # Sky Project branding
 ```
 
-If you don't want to build the release configuration for the x86_64 architecture, you can instead pick another build configuration from: `{debug|release}_{x86|x64|arm|arm64}`.
+## 🔗 Links
 
-#### GNU/Linux: Docker Build Environment
+- [Sky Project repository](https://github.com/n1cec0derrr/skyproject-mtasa)
+- [Original MTA:SA source code](https://github.com/multitheftauto/mtasa-blue)
+- [Multi Theft Auto](https://multitheftauto.com/)
 
-If you have problems resolving the required dependencies or want maximum compatibility, you can use our dockerized build environment that ships all needed dependencies. We also use this environment to build the official binaries.
+## 📜 License & attribution
 
-**Pulling the Docker image**
+This project is based on **Multi Theft Auto: San Andreas**, developed by the MTA team and its contributors. Sky Project is an independent modification and is **not an official MTA project**.
 
-```sh
-$ docker pull ghcr.io/multitheftauto/mtasa-blue-build:latest
-```
+The original licenses, copyright notices, and applicable third-party license terms remain in effect. See the license files distributed with the source code. Original authorship and attribution are retained.
 
-**Building with Docker**
+<div align="center">
 
-These examples assume that your current directory is the mtasa-blue checkout directory. You should also know that `/build` is the code directory required by our Docker image inside the container. After compiling, you will find the resulting binaries in `./Bin`. To build the unoptimised debug build, add `--config=debug` to the docker run arguments.
+---
 
-```sh
-# x86_64
-docker run --rm -v `pwd`:/build ghcr.io/multitheftauto/mtasa-blue-build:latest --arch=x64
+<sub>SKY PROJECT · BASED ON MTA:SA 1.6.0</sub>
 
-# x86
-docker run --rm -v `pwd`:/build ghcr.io/multitheftauto/mtasa-blue-build:latest --arch=x86
-
-# arm
-docker run --rm -v `pwd`:/build ghcr.io/multitheftauto/mtasa-blue-build:latest --arch=arm
-
-# arm64
-docker run --rm -v `pwd`:/build ghcr.io/multitheftauto/mtasa-blue-build:latest --arch=arm64
-```
-
-### Premake FAQ
-
-#### How to add new C++ source files?
-
-Execute `win-create-projects.bat`
-
-## License
-
-Unless otherwise specified, all source code hosted on this repository is licensed under the GPLv3 license. See the [LICENSE](./LICENSE) file for more details.
-
-Grand Theft Auto and all related trademarks are © Rockstar North 1997–2025.
+</div>
