@@ -33,6 +33,10 @@
 #include "CCrashDumpWriter.h"
 #include "FastFailCrashHandler/WerCrashHandler.h"
 
+#include "DLC/CSkyDLCManager.h"
+#include "DLC/CSkyDLCCrypto.h"
+#include <filesystem>
+
 using SharedUtil::CalcMTASAPath;
 using namespace std;
 
@@ -102,7 +106,63 @@ CCore::CCore()
     // Initialize the global pointer
     g_pCore = this;
 
+    
+    
+    // Sky DLC Crypto - non-empty ciphertext test
+    {
+        SkyDLC::AESKey   key{};
+        SkyDLC::AESNonce nonce{};
+
+        // AES-256-GCM, zero key, zero nonce,
+        // 16-byte zero plaintext.
+        const std::vector<uint8_t> encryptedData = {0xCE, 0xA7, 0x40, 0x3D, 0x4D, 0x60, 0x6B, 0x6E, 0x07, 0x4E, 0xC5, 0xD3, 0xBA, 0xF3, 0x9D, 0x18};
+
+        const SkyDLC::AESTag tag = {0xD0, 0xD1, 0xC8, 0xA7, 0x99, 0x99, 0x6B, 0xF0, 0x26, 0x5B, 0x98, 0xB5, 0xD4, 0x8A, 0xB9, 0x19};
+
+        std::vector<uint8_t> decryptedData;
+
+        const bool result = SkyDLC::CSkyDLCCrypto::Decrypt(key, nonce, tag, encryptedData, decryptedData);
+
+        const bool correctPlaintext =
+            decryptedData.size() == 16 && std::all_of(decryptedData.begin(), decryptedData.end(), [](uint8_t value) { return value == 0; });
+
+        WriteDebugEvent(SString("SkyDLC Crypto: data decryption=%s", result && correctPlaintext ? "PASS" : "FAIL"));
+    }
+
+
+
     m_pConfigFile = NULL;
+
+       // Sky Project DLC Manager - initialization test
+    static SkyDLC::CSkyDLCManager skyDLCManager;
+
+    wchar_t     executablePath[MAX_PATH] = {};
+    const DWORD pathLength = GetModuleFileNameW(nullptr, executablePath, MAX_PATH);
+
+    if (pathLength > 0 && pathLength < MAX_PATH)
+    {
+        const std::filesystem::path gtaDirectory = std::filesystem::path(executablePath).parent_path();
+
+        const std::filesystem::path binDirectory = gtaDirectory.parent_path().parent_path();
+
+        const auto dlcDirectory = binDirectory / L"dlc";
+
+        WriteDebugEvent(SString("SkyDLC: scanning directory: %s", dlcDirectory.string().c_str()));
+
+        const bool initialized = skyDLCManager.Initialize(dlcDirectory);
+
+        if (skyDLCManager.WasTestDecryptionAttempted())
+        {
+            WriteDebugEvent(SString("SkyDLC: AES-256-GCM decryption=%s, decryptedBytes=%d", skyDLCManager.WasTestDecryptionSuccessful() ? "PASS" : "FAIL",
+                                    static_cast<int>(skyDLCManager.GetTestDecryptedSize())));
+        }
+        else
+        {
+            WriteDebugEvent("SkyDLC: no test DLC decryption attempted");
+        }
+
+        WriteDebugEvent(SString("SkyDLC: initialized=%d, packages=%d", initialized ? 1 : 0, static_cast<int>(skyDLCManager.GetPackages().size())));
+    }
 
     // Set our locale to the C locale, except for character handling which is the system's default
     std::setlocale(LC_ALL, "C");
