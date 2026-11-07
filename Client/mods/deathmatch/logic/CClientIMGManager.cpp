@@ -33,6 +33,14 @@ CClientIMGManager::~CClientIMGManager()
 
 void CClientIMGManager::InitDefaultBufferSize()
 {
+    // Our archives hold files far bigger than the default gta3.img, a smaller buffer would overflow when they stream in
+    const auto streaming = g_pGame->GetStreaming();
+    const auto fileCount = g_pGame->GetCountOfAllFileIDs();
+
+    for (int32_t id = 0; id < fileCount; id++)
+        m_GTALargestFileSizeBlocks = std::max(m_GTALargestFileSizeBlocks, streaming->GetStreamingInfo(id)->sizeInBlocks);
+
+    UpdateStreamerBufferSize();
 }
 
 CClientIMG* CClientIMGManager::GetElementFromArchiveID(unsigned char ucArchiveID)
