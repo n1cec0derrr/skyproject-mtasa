@@ -133,25 +133,35 @@ CCore::CCore()
 
     m_pConfigFile = NULL;
 
-    // Sky Project DLC: must be ready before the game opens its first data file
+       // Sky Project DLC Manager - initialization test
+    static SkyDLC::CSkyDLCManager skyDLCManager;
+
+    wchar_t     executablePath[MAX_PATH] = {};
+    const DWORD pathLength = GetModuleFileNameW(nullptr, executablePath, MAX_PATH);
+
+    if (pathLength > 0 && pathLength < MAX_PATH)
     {
-        SkyDLC::AESKey masterKey{};
+        const std::filesystem::path gtaDirectory = std::filesystem::path(executablePath).parent_path();
 
-        if (SkyDLC::CSkyDLCCrypto::GetMasterKey(masterKey))
+        const std::filesystem::path binDirectory = gtaDirectory.parent_path().parent_path();
+
+        const auto dlcDirectory = binDirectory / L"dlc";
+
+        WriteDebugEvent(SString("SkyDLC: scanning directory: %s", dlcDirectory.string().c_str()));
+
+        const bool initialized = skyDLCManager.Initialize(dlcDirectory);
+
+        if (skyDLCManager.WasTestDecryptionAttempted())
         {
-            auto&      manager = SkyDLC::GetDLCManager();
-            const bool initialized = manager.Initialize(std::filesystem::path(FromUTF8(CalcMTASAPath("dlc"))), masterKey);
-            const bool hooked = manager.GetFileCount() > 0 && SkyDLC::InstallFileHooks();
-
-            WriteDebugEvent(SString("SkyDLC: initialized=%d, hooked=%d, packages=%d, files=%d", initialized ? 1 : 0, hooked ? 1 : 0,
-                                    static_cast<int>(manager.GetPackageCount()), static_cast<int>(manager.GetFileCount())));
+            WriteDebugEvent(SString("SkyDLC: AES-256-GCM decryption=%s, decryptedBytes=%d", skyDLCManager.WasTestDecryptionSuccessful() ? "PASS" : "FAIL",
+                                    static_cast<int>(skyDLCManager.GetTestDecryptedSize())));
         }
         else
         {
-            WriteDebugEvent("SkyDLC: no master key in this build");
+            WriteDebugEvent("SkyDLC: no test DLC decryption attempted");
         }
 
-        SecureZeroMemory(masterKey.data(), masterKey.size());
+        WriteDebugEvent(SString("SkyDLC: initialized=%d, packages=%d", initialized ? 1 : 0, static_cast<int>(skyDLCManager.GetPackages().size())));
     }
 
     // Set our locale to the C locale, except for character handling which is the system's default
@@ -1920,11 +1930,6 @@ void CCore::UpdateRecentlyPlayed()
     }
     // Save our configuration file
     CCore::GetSingleton().SaveConfig();
-}
-
-bool CCore::ReadSkyDLCFile(const std::string& path, std::string& data)
-{
-    return SkyDLC::GetDLCManager().ReadFile(path, data);
 }
 
 void CCore::OnPostColorFilterRender()

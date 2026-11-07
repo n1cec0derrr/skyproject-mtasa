@@ -18,19 +18,6 @@
 #include "CLuaEngineDefs.h"
 #include <enums/VehicleType.h>
 
-// Models of a resource packed into a .skydlc take priority over the files on disk,
-// so scripts keep loading them by their usual paths.
-static bool ReadSkyDLCResourceFile(CResource* pResource, const std::string& strMetaPath, SString& strOutData)
-{
-    std::string strData;
-
-    if (!g_pCore->ReadSkyDLCFile(SString("resources/%s/%s", pResource->GetName(), strMetaPath.c_str()), strData))
-        return false;
-
-    strOutData = std::move(strData);
-    return true;
-}
-
 //! Set the CModelCacheManager limits
 //! By passing `nil`/no value the original values are restored
 void EngineStreamingSetModelCacheLimits(std::optional<size_t> numVehicles, std::optional<size_t> numPeds) {
@@ -322,15 +309,11 @@ int CLuaEngineDefs::EngineLoadCOL(lua_State* luaVM)
                     return 1;
                 }
 
-                SString     filePath;
-                std::string metaPath;
+                SString filePath;
 
                 // Is this a legal filepath?
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
                 {
-                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
-                        bIsRawData = true;
-
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceCOLModelRoot();
 
@@ -399,14 +382,10 @@ int CLuaEngineDefs::EngineLoadDFF(lua_State* luaVM)
                     return 1;
                 }
 
-                SString     filePath;
-                std::string metaPath;
+                SString filePath;
 
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
                 {
-                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
-                        bIsRawData = true;
-
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceDFFRoot();
 
@@ -477,14 +456,10 @@ int CLuaEngineDefs::EngineLoadTXD(lua_State* luaVM)
                     return 1;
                 }
 
-                SString     filePath;
-                std::string metaPath;
+                SString filePath;
 
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
                 {
-                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
-                        bIsRawData = true;
-
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceTXDRoot();
 

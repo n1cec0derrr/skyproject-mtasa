@@ -10,7 +10,7 @@ project "Multiplayer SA"
 	-- Falling back to the old, C++14 implementing fixes this
 	-- See https://developercommunity.visualstudio.com/content/problem/549628/stack-access-broken-in-naked-function.html
 	-- We're not aware of any workaround to avoid rewriting multiplayer_sa
-	cppdialect "C++17" 
+	cppdialect "C++14" 
 
 	filter "system:windows"
 		includedirs { "../../vendor/sparsehash/src/windows" }

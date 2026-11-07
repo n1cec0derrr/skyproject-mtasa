@@ -1,19 +1,16 @@
-#pragma once
 
-#include "CSkyDLCCrypto.h"
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace SkyDLC
 {
     namespace fs = std::filesystem;
 
-    constexpr uint32_t FORMAT_VERSION = 3;
+    constexpr uint32_t FORMAT_VERSION = 2;
 
     enum class DLCType : uint32_t
     {
@@ -24,48 +21,49 @@ namespace SkyDLC
         Other = 255
     };
 
-    class CSkyDLCPackage;
-
-    struct DLCFile
+    struct DLCHeader
     {
-        CSkyDLCPackage* package = nullptr;
-        uint64_t        offset = 0;
-        uint64_t        size = 0;
+        char     magic[8];
+        uint32_t version;
+        uint32_t type;
+        uint64_t encryptedSize;
+
+        uint8_t nonce[12];
+        uint8_t tag[16];
+    };
+
+    struct DLCPackage
+    {
+        fs::path path;
+        DLCType type = DLCType::Other;
+        uint64_t encryptedSize = 0;
+        bool valid = false;
     };
 
     class CSkyDLCManager
     {
     public:
-        CSkyDLCManager();
-        ~CSkyDLCManager();
-
-        bool Initialize(const fs::path& dlcDirectory, const AESKey& masterKey);
+        bool Initialize(const fs::path& dlcDirectory);
         void Shutdown();
 
-        size_t GetPackageCount() const { return m_packages.size(); }
-        size_t GetFileCount() const { return m_files.size(); }
+        const std::vector<DLCPackage>& GetPackages() const;
 
-        // Path is relative to the GTA directory (data/gta.dat) or starts with resources/<name>/.
-        const DLCFile* FindFile(std::string path) const;
 
-        // Thread safe. Returns false if the data does not pass authentication.
-        bool Read(const DLCFile& file, uint64_t offset, void* buffer, uint32_t size, uint32_t& bytesRead) const;
-        bool ReadFile(const std::string& path, std::string& data) const;
+        bool WasTestDecryptionAttempted() const { return m_testDecryptionAttempted; }
 
-        const fs::path& GetPackagePath(const DLCFile& file) const;
+        bool WasTestDecryptionSuccessful() const { return m_testDecryptionSuccessful; }
 
-        static std::string NormalizePath(std::string path);
+        size_t GetTestDecryptedSize() const { return m_testDecryptedSize; }
 
     private:
-        bool LoadPackage(const fs::path& path, const AESKey& masterKey);
+        bool LoadPackage(const fs::path& path);
 
-        std::vector<std::unique_ptr<CSkyDLCPackage>> m_packages;
-        std::unordered_map<std::string, DLCFile>     m_files;
+        fs::path m_dlcDirectory;
+        std::vector<DLCPackage> m_packages;
+
+
+        bool   m_testDecryptionAttempted = false;
+        bool   m_testDecryptionSuccessful = false;
+        size_t m_testDecryptedSize = 0;
     };
-
-    // Single instance used by the file hooks and the Lua engine functions.
-    CSkyDLCManager& GetDLCManager();
-
-    // Makes the game see the files of the packages as ordinary files.
-    bool InstallFileHooks();
 }

@@ -300,8 +300,6 @@ public:
 
     void OnPostColorFilterRender() override;
 
-    bool ReadSkyDLCFile(const std::string& path, std::string& data) override;
-
 private:
     void ApplyCoreInitSettings();
 

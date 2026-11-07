@@ -553,16 +553,6 @@ SString SharedUtil::GetMTASABaseDir()
                                                                                "registry32";
                 }
             }
-            // First run: the launcher logs before it records its location in the registry
-            if (strInstallRoot.empty() && !IsGTAProcess())
-            {
-                const SString strLaunchPath = ExtractPath(GetLaunchPathFilename());
-                if (SharedUtil::IsUsableMtasaInstallRoot(strLaunchPath) && !SharedUtil::IsTemporaryUpdateLaunchPath(strLaunchPath))
-                {
-                    strInstallRoot = strLaunchPath;
-                    strInstallRootSource = "launch path";
-                }
-            }
             if (strInstallRoot.empty())
             {
                 if (!strFirstNonEmptyRegistryValue.empty())
