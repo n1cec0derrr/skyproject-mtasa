@@ -106,6 +106,14 @@ int main(int argc, char* argv[])
 
     for (const auto& lang : dictManager.get_languages(MTA_LOCALE_TEXTDOMAIN))
     {
+        // Sky Project: allow Ukrainian, Russian and English only
+        if (lang.str() != "uk_UA" &&
+            lang.str() != "ru_RU" &&
+            lang.str() != "en_US")
+        {
+            continue;
+        }
+
         Dictionary dict = dictManager.get_dictionary(lang, MTA_LOCALE_TEXTDOMAIN);
         std::string name = dict.translate("English");
 
@@ -117,7 +125,6 @@ int main(int argc, char* argv[])
 #if defined(MTA_DEBUG)
         std::cout << lang.str() << " => " << name << std::endl;
 #endif
-
         nativeLanguageNames.push_back({lang.str(), name, lang.get_name()});
     }
 

@@ -49,22 +49,19 @@ CLocalization::~CLocalization()
 //
 SString CLocalization::ValidateLocale(SString strLocale)
 {
-    if (strLocale.empty() && (CClientVariables::GetSingletonPtr() == nullptr || !CVARS_GET("locale", strLocale)))
-        strLocale = "en_US";
+    if (strLocale.empty())
+    {
+        if (CClientVariables::GetSingletonPtr() != nullptr)
+            CVARS_GET("locale", strLocale);
 
-    // NOTE(patrik): Convert old two letter language to locale to fix any issues with flags
-    if (strLocale == "en")
-        strLocale = "en_US";
-    else if (strLocale == "fi")
-        strLocale = "fi_FI";
-    else if (strLocale == "az")
-        strLocale = "az_AZ";
-    else if (strLocale == "ka")
-        strLocale = "ka_GE";
+        if (strLocale.empty())
+            strLocale = GetApplicationSetting("locale");
 
-    Language Lang = Language::from_name(strLocale);
-    Lang = Lang ? Lang : Language::from_name("en_US");
-    return Lang.str();
+        if (strLocale.empty())
+            strLocale = "uk_UA";
+    }
+
+    return strLocale;
 }
 
 //
@@ -203,14 +200,7 @@ SString CLocalization::GetTranslators()
 
 std::vector<SString> CLocalization::GetAvailableLocales()
 {
-    std::vector<SString> localeList = {"en_US"};
-    for (const auto& language : m_DictManager.get_languages(MTA_LOCALE_TEXTDOMAIN))
-        // To avoid duplicates
-        if (std::find(localeList.begin(), localeList.end(), language.str()) == localeList.end())
-            localeList.push_back(language.str());
-    // Alpha sort
-    std::sort(localeList.begin(), localeList.end());
-    return localeList;
+    return {"en_US", "ru_RU", "uk_UA"};
 }
 
 // Tell whether the client is translated

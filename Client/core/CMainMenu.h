@@ -21,7 +21,7 @@ class CMainMenu;
 #include "CCredits.h"
 #include <Graphics/CGraphics.h>
 class CNewsBrowser;
-class CLanguageSelector;
+
 
 #define CORE_MTA_NEWS_ITEMS 3
 
@@ -124,7 +124,6 @@ private:
     CCredits           m_Credits;
     CServerBrowser     m_ServerBrowser;
     CServerInfo        m_ServerInfo;
-    CLanguageSelector* m_pLanguageSelector;
 
     // Properties
     bool m_bIsIngame;

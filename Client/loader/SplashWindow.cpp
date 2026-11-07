@@ -370,20 +370,12 @@ void Splash::OnDestroy()
  */
 void Splash::Paint(HDC windowContext, bool drawBackground) const
 {
-    if (drawBackground)
+    if (m_bgContext)
     {
         SelectClipRgn(windowContext, nullptr);
         BitBlt(windowContext, 0, 0, m_width, m_height, m_bgContext, 0, 0, SRCCOPY);
     }
-
-    SelectClipRgn(windowContext, m_barRegion);
-
-    if (m_barX > 0)
-        BitBlt(windowContext, 0, m_barY, m_width, m_height, m_barContext, m_width - m_barX, 0, SRCCOPY);
-
-    BitBlt(windowContext, m_barX, m_barY, m_width, m_height, m_barContext, 0, 0, SRCCOPY);
 }
-
 /**
  * @brief Updates the progress of the loading bar and invalidates the loading bar region of the window.
  */

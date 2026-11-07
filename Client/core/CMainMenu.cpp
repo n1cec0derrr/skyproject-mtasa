@@ -12,17 +12,16 @@
 #include "StdInc.h"
 #include <game/CGame.h>
 #include "CNewsBrowser.h"
-#include "CLanguageSelector.h"
 #include "CDiscordRichPresence.h"
 
-#define NATIVE_RES_X 1280.0f
-#define NATIVE_RES_Y 1024.0f
+#define NATIVE_RES_X 1920.0f
+#define NATIVE_RES_Y 1080.0f
 
-#define NATIVE_BG_X 1280.0f
-#define NATIVE_BG_Y 649.0f
+#define NATIVE_BG_X 1920.0f
+#define NATIVE_BG_Y 6080.0f
 
-#define NATIVE_LOGO_X 1058.0f
-#define NATIVE_LOGO_Y 540.0f
+#define NATIVE_LOGO_X 500.0f
+#define NATIVE_LOGO_Y 245.0f
 
 #define CORE_MTA_MENUITEMS_START_X 0.168
 
@@ -159,29 +158,23 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_pLogo->LoadFromFile(CORE_MTA_LOGO);
     m_pLogo->SetProperty("InheritsAlpha", "False");
     m_pLogo->SetSize(logoSize, false);
-    m_pLogo->SetPosition(CVector2D(0.5f * m_iMenuSizeX - logoSize.fX / 2, 0.365f * m_iMenuSizeY - logoSize.fY / 2), false);
+    // Логотип в левом верхнем углу (отступ 40px в нативном разрешении 1920x1080)
+    const float fLogoMarginX = (40.0f / NATIVE_RES_X) * m_iMenuSizeX;
+    const float fLogoMarginY = (40.0f / NATIVE_RES_Y) * m_iMenuSizeY;
+    m_pLogo->SetPosition(CVector2D(fLogoMarginX, fLogoMarginY), false);
     m_pLogo->SetZOrderingEnabled(false);
 
-    // Create the image showing the version number
-    m_pVersion = reinterpret_cast<CGUIStaticImage*>(pManager->CreateStaticImage());
-    m_pVersion->LoadFromFile(CORE_MTA_VERSION);
-    m_pVersion->SetParent(m_pCanvas);
-    m_pVersion->SetPosition(CVector2D(0.855f, 0.512f), true);
-    m_pVersion->SetSize(CVector2D((32 / NATIVE_RES_X) * m_iMenuSizeX, (32 / NATIVE_RES_Y) * m_iMenuSizeY), false);
-    m_pVersion->SetProperty("InheritsAlpha", "False");
+    const float fMenuLeft = 40.0f / NATIVE_RES_X;
 
-    float fBase = 0.613f;
+    float fBase = 0.457f;  // было 0.613f: три кнопки по вертикали центрируются на 0.5
     float fGap = 0.043f;
-    // Our disconnect item is shown/hidden dynamically, so we store it seperately
-    m_pDisconnect = CreateItem(MENU_ITEM_DISCONNECT, "menu_disconnect.png", CVector2D(0.168f, fBase + fGap * 0));
+    // Disconnect
+    m_pDisconnect = CreateItem(MENU_ITEM_DISCONNECT, "menu_disconnect.png", CVector2D(fMenuLeft, fBase + fGap * 0));
     m_pDisconnect->image->SetVisible(false);
 
-    // Create the menu items
-    // Filepath, Relative position, absolute native size
-    // And the font for the graphics is ?
-    m_menuItems.push_back(CreateItem(MENU_ITEM_QUICK_CONNECT, "menu_quick_connect.png", CVector2D(0.168f, fBase + fGap * 0)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_SETTINGS, "menu_settings.png", CVector2D(0.168f, fBase + fGap * 1)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_QUIT, "menu_quit.png", CVector2D(0.168f, fBase + fGap * 2)));
+    m_menuItems.push_back(CreateItem(MENU_ITEM_QUICK_CONNECT, "menu_quick_connect.png", CVector2D(fMenuLeft, fBase + fGap * 0)));
+    m_menuItems.push_back(CreateItem(MENU_ITEM_SETTINGS, "menu_settings.png", CVector2D(fMenuLeft, fBase + fGap * 1)));
+    m_menuItems.push_back(CreateItem(MENU_ITEM_QUIT, "menu_quit.png", CVector2D(fMenuLeft, fBase + fGap * 2)));
 
     // We store the position of the top item, and the second item.  These will be useful later
     float fFirstItemSize = m_menuItems.front()->image->GetSize(false).fY;
@@ -191,9 +184,10 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_iSecondItemCentre = (m_menuItems[1]->image)->GetPosition().fY + fSecondItemSize * 0.5f;
 
     // Store some mouse over bounding box positions
-    m_menuAX = (0.168f * m_iMenuSizeX) + m_iXOff;                                                            // Left side of the items
+    const float fMenuWidth = (390 / NATIVE_RES_X) * m_iMenuSizeX;                                            // Width of the longest picture
+    m_menuAX = (fMenuLeft * m_iMenuSizeX) + m_iXOff;                                                         // Left side of the items
     m_menuAY = m_iFirstItemCentre - fFirstItemSize * (CORE_MTA_HOVER_SCALE / CORE_MTA_NORMAL_SCALE) * 0.5f;  // Top side of the items
-    m_menuBX = m_menuAX + ((390 / NATIVE_RES_X) * m_iMenuSizeX);  // Right side of the items. We add the longest picture (browse_servers)
+    m_menuBX = m_menuAX + fMenuWidth;                                                                        // Right side of the items
     m_menuAY += BODGE_FACTOR_1;
 
     m_pMenuArea = reinterpret_cast<CGUIStaticImage*>(pManager->CreateStaticImage(m_pCanvas));
@@ -276,7 +270,6 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_Settings.SetVisible(false);
     m_Credits.SetVisible(false);
     m_pNewsBrowser->SetVisible(false);
-    m_pLanguageSelector = new CLanguageSelector(m_pCanvas);
 
     // We're not ingame
     SetIsIngame(false);
@@ -391,8 +384,6 @@ CMainMenu::~CMainMenu()
         m_pDisconnect = nullptr;
     }
 
-    delete m_pLanguageSelector;
-    m_pLanguageSelector = nullptr;
 
     delete m_pNewsBrowser;
     m_pNewsBrowser = nullptr;
@@ -716,7 +707,6 @@ void CMainMenu::Update()
     // Call subdialog pulses
     m_ServerBrowser.Update();
     m_ServerInfo.DoPulse();
-    m_pLanguageSelector->DoPulse();
 }
 
 void CMainMenu::Show(bool bOverlay)
