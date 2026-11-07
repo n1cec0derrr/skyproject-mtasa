@@ -134,6 +134,31 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_pBackground->SetAlpha(0);
     m_pBackground->SetVisible(false);
 
+    // Затемнение фона слева: чёрный градиент, плавно переходящий в прозрачность
+    {
+        constexpr int   kShadeWidth = 256;
+        constexpr float kShadeMaxAlpha = 0.80f;    // насколько тёмный край слева (0..1)
+        constexpr float kShadeScreenPart = 0.45f;  // какую часть ширины экрана занимает затемнение
+
+        std::uint32_t shadePixels[kShadeWidth];
+        for (int i = 0; i < kShadeWidth; i++)
+        {
+            float t = 1.0f - i / (float)(kShadeWidth - 1);       // 1 слева -> 0 справа
+            float a = kShadeMaxAlpha * t * t;                    // квадрат даёт более плавный спад
+            shadePixels[i] = (std::uint32_t)(a * 255.0f) << 24;  // цвет чёрный, меняется только альфа
+        }
+
+        m_pLeftShadeTexture.reset(reinterpret_cast<CGUITexture*>(m_pManager->CreateTexture()));
+        m_pLeftShadeTexture->LoadFromMemory(shadePixels, kShadeWidth, 1);
+
+        // Дочерний элемент фона: растягивается от левого края экрана и исчезает вместе с фоном
+        CGUIStaticImage* pShade = reinterpret_cast<CGUIStaticImage*>(m_pManager->CreateStaticImage(m_pBackground));
+        pShade->LoadFromTexture(m_pLeftShadeTexture.get());
+        pShade->SetPosition(CVector2D(0, 0), false);
+        pShade->SetSize(CVector2D(ScreenSize.fX * kShadeScreenPart, m_iMenuSizeY), false);
+        pShade->SetZOrderingEnabled(false);
+    }
+
     m_pFiller2 = reinterpret_cast<CGUIStaticImage*>(pManager->CreateStaticImage());
     m_pFiller2->LoadFromFile(CORE_MTA_FILLER);
     m_pFiller2->SetVisible(false);
@@ -200,7 +225,6 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_pMenuArea->SetMouseEnterHandler(GUI_CALLBACK(&CMainMenu::OnMenuEnter, this));
     m_pMenuArea->SetMouseLeaveHandler(GUI_CALLBACK(&CMainMenu::OnMenuExit, this));
 
-    
     CVector2D vecNativeSize;
 
     float fDrawSizeX = (vecNativeSize.fX / NATIVE_RES_X) * m_iMenuSizeX;
@@ -208,7 +232,6 @@ CMainMenu::CMainMenu(CGUI* pManager)
 
     float fDrawPosX = 0.83f * m_iMenuSizeX - fDrawSizeX;  // Right aligned
     float fDrawPosY = 0.61f * m_iMenuSizeY;
-
 
     // Create news item stuff
     fDrawPosX -= 25;
@@ -383,7 +406,6 @@ CMainMenu::~CMainMenu()
         delete m_pDisconnect;
         m_pDisconnect = nullptr;
     }
-
 
     delete m_pNewsBrowser;
     m_pNewsBrowser = nullptr;
@@ -924,7 +946,7 @@ bool CMainMenu::OnQuickConnectButtonClick(CGUIElement* pElement, bool left)
             return true;
         }
 
-        g_pCore->GetCommands()->Execute("reconnect", "");
+        g_pCore->GetCommands()->Execute("connect", "51.75.44.11");
     }
     else
     {
@@ -1145,7 +1167,6 @@ void CMainMenu::SetNewsHeadline(int iIndex, const SString& strHeadline, const SS
 {
     if (iIndex < 0 || iIndex > 2)
         return;
-
 
     // Headline
     CGUILabel* pItem = m_pNewsItemLabels[iIndex];

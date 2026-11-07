@@ -164,6 +164,8 @@ private:
     CGUILabel* m_pNewsItemShadowLabels[CORE_MTA_NEWS_ITEMS];
     CGUILabel* m_pNewsItemDateLabels[CORE_MTA_NEWS_ITEMS];
     CGUILabel* m_pNewsItemNEWLabels[CORE_MTA_NEWS_ITEMS];
+    // Текстура градиента для затемнения фона слева
+    std::unique_ptr<CGUITexture> m_pLeftShadeTexture;
 
 #ifdef CI_BUILD
     std::unique_ptr<CGUITexture>     m_pFeatureBranchAlertTexture;
