@@ -798,9 +798,10 @@ static const SString DoUserAssistedSearch() noexcept
 ///////////////////////////////////////////////////////////////
 ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 {
-    // Sky Project Portable: prefer GTA installed next to the launcher.
-    const SString portableGamePath = GetLaunchPath();
-    if (FileExists(PathJoin(portableGamePath, MTA_GTA_KNOWN_FILE_NAME)))
+    // Sky Project: GTA San Andreas is bundled inside runtime.
+    const SString portableGamePath = PathJoin(GetLaunchPath(), "runtime\\GTA San Andreas");
+
+    if (FileExists(PathJoin(portableGamePath, GTA_EXE_NAME)) && FileExists(PathJoin(portableGamePath, MTA_GTA_KNOWN_FILE_NAME)))
     {
         strOutResult = portableGamePath;
         return GAME_PATH_OK;

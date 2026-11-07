@@ -1611,13 +1611,13 @@ void CheckDataFiles()
 
     // Check main exe has the correct name
     const SString launchFilename = GetLaunchFilename();
-    if (!launchFilename.CompareI(MTA_EXE_NAME))
+    if (!launchFilename.CompareI("Sky Project.exe"))
     {
         const SString strMessage(_("Main file has an incorrect name (%s)"), *launchFilename);
         if (MessageBoxUTF8(NULL, strMessage, _("Error") + _E("CL33"), MB_RETRYCANCEL | MB_ICONERROR | MB_TOPMOST) == IDRETRY)
         {
             ReleaseSingleInstanceMutex();
-            const SString correctExePath = PathJoin(strMTASAPath, MTA_EXE_NAME);
+            const SString correctExePath = PathJoin(strMTASAPath, "Sky Project.exe");
             if (FileExists(correctExePath))
             {
                 ShellExecuteNonBlocking("open", correctExePath);

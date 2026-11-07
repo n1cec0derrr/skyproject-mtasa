@@ -29,11 +29,11 @@ constexpr std::wstring_view STEAM_GTA_EXE_NAME = L"gta-sa.exe";
 constexpr std::wstring_view EXPLORER_EXE_NAME = L"explorer.exe";
 
 #ifdef MTA_DEBUG
-constexpr std::wstring_view MTA_EXE_NAME = L"Multi Theft Auto_d.exe";
+constexpr std::wstring_view MTA_EXE_NAME = L"Sky Project_d.exe";
 constexpr std::wstring_view CORE_DLL_NAME = L"core_d.dll";
 constexpr std::wstring_view NETC_DLL_NAME = L"netc_d.dll";
 #else
-constexpr std::wstring_view MTA_EXE_NAME = L"Multi Theft Auto.exe";
+constexpr std::wstring_view MTA_EXE_NAME = L"Sky Project.exe";
 constexpr std::wstring_view CORE_DLL_NAME = L"core.dll";
 constexpr std::wstring_view NETC_DLL_NAME = L"netc.dll";
 #endif
@@ -282,10 +282,17 @@ VOID OnGameLaunch()
         {
             return fs::path{gtaPathFromEnv.data()};
         }
-        // Current working directory
+        // Sky Project: GTA is launched from its own directory
         else
         {
-            return fs::current_path(ec);
+            std::array<wchar_t, 32768> exePath{};
+
+            const DWORD length = GetModuleFileNameW(nullptr, exePath.data(), static_cast<DWORD>(exePath.size()));
+
+            if (length == 0 || length >= exePath.size())
+                return {};
+
+            return fs::path(exePath.data()).parent_path();
         }
     }();
 

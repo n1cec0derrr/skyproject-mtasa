@@ -180,12 +180,8 @@ CMainMenu::CMainMenu(CGUI* pManager)
     // Filepath, Relative position, absolute native size
     // And the font for the graphics is ?
     m_menuItems.push_back(CreateItem(MENU_ITEM_QUICK_CONNECT, "menu_quick_connect.png", CVector2D(0.168f, fBase + fGap * 0)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_BROWSE_SERVERS, "menu_browse_servers.png", CVector2D(0.168f, fBase + fGap * 1)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_HOST_GAME, "menu_host_game.png", CVector2D(0.168f, fBase + fGap * 2)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_MAP_EDITOR, "menu_map_editor.png", CVector2D(0.168f, fBase + fGap * 3)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_SETTINGS, "menu_settings.png", CVector2D(0.168f, fBase + fGap * 4)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_ABOUT, "menu_about.png", CVector2D(0.168f, fBase + fGap * 5)));
-    m_menuItems.push_back(CreateItem(MENU_ITEM_QUIT, "menu_quit.png", CVector2D(0.168f, fBase + fGap * 6)));
+    m_menuItems.push_back(CreateItem(MENU_ITEM_SETTINGS, "menu_settings.png", CVector2D(0.168f, fBase + fGap * 1)));
+    m_menuItems.push_back(CreateItem(MENU_ITEM_QUIT, "menu_quit.png", CVector2D(0.168f, fBase + fGap * 2)));
 
     // We store the position of the top item, and the second item.  These will be useful later
     float fFirstItemSize = m_menuItems.front()->image->GetSize(false).fY;
@@ -210,24 +206,15 @@ CMainMenu::CMainMenu(CGUI* pManager)
     m_pMenuArea->SetMouseEnterHandler(GUI_CALLBACK(&CMainMenu::OnMenuEnter, this));
     m_pMenuArea->SetMouseLeaveHandler(GUI_CALLBACK(&CMainMenu::OnMenuExit, this));
 
-    m_pLatestNews = reinterpret_cast<CGUIStaticImage*>(pManager->CreateStaticImage());
-    if (!m_pLatestNews->LoadFromFile(PathJoin(g_pCore->GetLocalization()->GetLanguageDirectory(), "latest_news.png")))
-    {
-        // Load en_US if no localization is available
-        auto pLanguage = g_pLocalization->GetLanguage("en_US");
-        m_pLatestNews->LoadFromFile(PathJoin(g_pCore->GetLocalization()->GetLanguageDirectory(pLanguage), "latest_news.png"));
-    }
-    m_pLatestNews->SetParent(m_pCanvas);
-    m_pLatestNews->SetProperty("InheritsAlpha", "False");
+    
     CVector2D vecNativeSize;
-    m_pLatestNews->GetNativeSize(vecNativeSize);
+
     float fDrawSizeX = (vecNativeSize.fX / NATIVE_RES_X) * m_iMenuSizeX;
     float fDrawSizeY = (vecNativeSize.fY / NATIVE_RES_Y) * m_iMenuSizeY;
-    m_pLatestNews->SetSize(CVector2D(fDrawSizeX, fDrawSizeY), false);
+
     float fDrawPosX = 0.83f * m_iMenuSizeX - fDrawSizeX;  // Right aligned
     float fDrawPosY = 0.61f * m_iMenuSizeY;
-    m_pLatestNews->SetPosition(CVector2D(fDrawPosX, fDrawPosY), false);
-    m_pLatestNews->SetVisible(false);
+
 
     // Create news item stuff
     fDrawPosX -= 25;
@@ -412,7 +399,7 @@ CMainMenu::~CMainMenu()
 
     destroyElement(m_pMenuArea);
     destroyElement(m_pLogo);
-    destroyElement(m_pLatestNews);
+
     destroyElement(m_pVersion);
 
     destroyElement(m_pCanvas);
@@ -1169,7 +1156,6 @@ void CMainMenu::SetNewsHeadline(int iIndex, const SString& strHeadline, const SS
     if (iIndex < 0 || iIndex > 2)
         return;
 
-    m_pLatestNews->SetVisible(true);
 
     // Headline
     CGUILabel* pItem = m_pNewsItemLabels[iIndex];

@@ -1,8 +1,8 @@
 project "Client Launcher"
-	language "C++"
-	cppdialect "C++23"
-	kind "WindowedApp"
-	targetname "Multi Theft Auto"
+    language "C++"
+    cppdialect "C++23"
+    kind "WindowedApp"
+    targetname "Sky Project"
 	targetdir(buildpath("."))
 	debugdir(buildpath("."))
 
