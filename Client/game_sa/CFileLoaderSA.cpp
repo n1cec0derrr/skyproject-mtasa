@@ -212,6 +212,7 @@ RpAtomic* CFileLoader_SetRelatedModelInfoCB(RpAtomic* atomic, SRelatedModelInfo*
     RpClumpRemoveAtomic(pRelatedModelInfo->pClump, atomic);
     RwFrame* newFrame = RwFrameCreate();
     RpAtomicSetFrame(atomic, newFrame);
+    OutputDebugStringA(SString("[SkyProject] SetAtomicId: atomic=%p, modelId=%u\n", atomic, gAtomicModelId));
     CVisibilityPlugins_SetAtomicId(atomic, gAtomicModelId);
 
     // Fix #359: engineReplaceModel memory leak

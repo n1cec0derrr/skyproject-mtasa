@@ -195,6 +195,10 @@ public:
     virtual void           SetLastConnectedServerName(const SString& strServerName) = 0;
 
     virtual void OnPostColorFilterRender() = 0;
+
+    
+    // Reads a file from the installed .skydlc packages. Returns false if there is no such file.
+    virtual bool ReadSkyDLCFile(const std::string& path, std::string& data) = 0;
 };
 
 class CClientTime
