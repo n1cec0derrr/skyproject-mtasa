@@ -987,6 +987,19 @@ void CVersionUpdater::OnPossibleConfigProblem()
 ///////////////////////////////////////////////////////////////
 void CVersionUpdater::RunProgram(EUpdaterProgramType strProgramName)
 {
+    // Sky Project ships its own builds, an update from MTA would replace this client with the official one
+    switch (strProgramName)
+    {
+        case EUpdaterProgramType::VersionCheck:
+        case EUpdaterProgramType::ManualCheck:
+        case EUpdaterProgramType::ManualCheckSim:
+        case EUpdaterProgramType::ServerSaysUpdate:
+        case EUpdaterProgramType::ServerSaysRecommend:
+            return;
+        default:
+            break;
+    }
+
     assert(IsMainThread());
     OutputDebugLine(SString("[Updater] RunProgram %d", strProgramName));
 

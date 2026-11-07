@@ -1532,7 +1532,10 @@ SString CInstallManager::_ProcessLayoutChecks()
 #if MTASA_VERSION_TYPE != VERSION_TYPE_CUSTOM
     // Check reg key exists
     {
-        if (GetRegistryValue("", "Last Install Location").empty())
+        // The installer runs elevated and writes for the whole machine, not for this user
+        const SString strInstallKey = PathJoin(GetProductRegistryPath(), GetMajorVersionString());
+        if (GetRegistryValue("", "Last Install Location").empty() &&
+            GetSystemRegistryValue(reinterpret_cast<uint>(HKEY_LOCAL_MACHINE), strInstallKey, "Last Install Location").empty())
             ShowLayoutError("[Registry key not present]");  // Can't find reg key
     }
 #endif
