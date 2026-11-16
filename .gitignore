@@ -410,3 +410,10 @@ utils/DXFiles/
 !*.exe
 utils/vswhere.exe
 *.generated.h
+
+# Sky Project: prebuilt vendor import libraries the client links against (*.lib and x86/ are ignored above)
+!vendor/bass/lib/*.lib
+!vendor/mysql/lib/x86/
+!vendor/mysql/lib/x86/*.lib
+!vendor/nvapi/x86/
+!vendor/nvapi/x86/*.lib

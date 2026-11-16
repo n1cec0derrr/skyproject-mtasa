@@ -37,9 +37,9 @@ void CMultiplayerSA::SetFastClothesLoading(EFastClothesLoading fastClothesLoadin
 
     if (fastClothesLoading != FAST_CLOTHES_OFF)
     {
-        // Load and cache player.img
-        SString strGTASAPath = GetCommonRegistryValue("", "GTA:SA Path");
-        SString strFilename = PathJoin(strGTASAPath, "models", "player.img");
+        // Load and cache player.img. Sky Project: from the folder the game runs from (runtime\GTA San Andreas),
+        // not the registry path, which may point at another install. The file may live in a .skydlc package.
+        SString strFilename = PathJoin(GetLaunchPath(), "models", "player.img");
         FileLoad(strFilename, m_PlayerImgCache);
     }
     else

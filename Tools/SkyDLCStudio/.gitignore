@@ -1,0 +1,6 @@
+*.exe
+*.obj
+obj/
+SkyDLCStudio.ini
+*.building
+*.manifest

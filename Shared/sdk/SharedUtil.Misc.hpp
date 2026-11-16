@@ -596,6 +596,14 @@ SString SharedUtil::CalcMTASAPath(const SString& strPath)
 //
 // Returns true if current process is GTA (i.e not MTA process)
 //
+bool SharedUtil::HasSkyDLCPackages(const SString& strDirectory)
+{
+    if (strDirectory.empty())
+        return false;
+
+    return !FindFiles(PathJoin(strDirectory, "dlc", "*.skydlc"), true, false).empty();
+}
+
 bool SharedUtil::IsGTAProcess()
 {
     static int iResult = -1;

@@ -18,8 +18,11 @@
 
 extern CCoreInterface* g_pCore;
 
-// count: 26316 in unmodified game
-CStreamingInfo (&CStreamingSA::ms_aInfoForModel)[26316] = *(CStreamingInfo(*)[26316])0x8E4CC0;
+// count: 26316 in unmodified game.
+// Sky Project: the address is read from the game code (0x8E4CC0 in an unmodified game), like
+// CModelInfoSA.h does. The fastman92 limit adjuster moves this array to a bigger one; with the fixed
+// address every GetStreamingInfo() read and wrote the old array past its end and corrupted memory.
+CStreamingInfo (&CStreamingSA::ms_aInfoForModel)[26316] = *(CStreamingInfo(*)[26316]) * (CStreamingInfo**)(0x5B8B08 + 6);
 HANDLE* phStreamingThread = (HANDLE*)0x8E4008;
 uint32(&CStreamingSA::ms_streamingHalfOfBufferSizeBlocks) = *(uint32*)0x8E4CA8;
 void* (&CStreamingSA::ms_pStreamingBuffer)[2] = *(void* (*)[2])0x8E4CAC;

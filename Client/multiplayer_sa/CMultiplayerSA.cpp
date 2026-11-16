@@ -784,7 +784,15 @@ void CMultiplayerSA::InitHooks()
 
     HookInstall(HOOKPOS_CWeapon__TakePhotograph, (DWORD)HOOK_CWeapon__TakePhotograph, 3 + 2);
 
-    HookInstall(HOOKPOS_CCollision__CheckCameraCollisionObjects, (DWORD)HOOK_CCollision__CheckCameraCollisionObjects, 6 + 4);
+    // Sky Project: the fastman92 limit adjuster puts its own jump at 0x41AB94 (the model info lookup it moves
+    // to its bigger array). This hook spans 0x41AB8E-0x41AB97 and would cut that jump in half: the game then
+    // ran the leftover bytes and crashed. Only hook the original code; with the limit adjuster the camera
+    // just keeps colliding with projectiles and car parts, as in plain GTA.
+    static const BYTE cameraCollisionOriginal[] = {0x0F, 0x84, 0x92, 0x00, 0x00, 0x00, 0x0F, 0xBF, 0x56, 0x22, 0x8B, 0x04, 0x95};
+    if (memcmp((const void*)HOOKPOS_CCollision__CheckCameraCollisionObjects, cameraCollisionOriginal, sizeof(cameraCollisionOriginal)) == 0)
+        HookInstall(HOOKPOS_CCollision__CheckCameraCollisionObjects, (DWORD)HOOK_CCollision__CheckCameraCollisionObjects, 6 + 4);
+    else
+        WriteDebugEvent("Sky: camera collision hook skipped, the code at 0x41AB8E is patched by a limit adjuster");
 
     // Disable GTA setting g_bGotFocus to false when we minimize
     MemSet((void*)ADDR_GotFocus, 0x90, 10);
@@ -7461,7 +7469,10 @@ void _declspec(naked) HOOK_CCollision__CheckCameraCollisionObjects()
     {
         // Restore instructions replaced by hook
         jz      out2
-        movsx   edx, word ptr [esi+22h]
+        // Sky Project: the model index is unsigned. The game has movsx here, the fastman92 limit adjuster
+        // turns it into movzx for model IDs above 32767, and this hook overwrites that patch. With movsx
+        // such an ID went negative and the next instruction read before the model info array.
+        movzx   edx, word ptr [esi+22h]
 
         // Store all registers
         pushad
