@@ -48,23 +48,27 @@ D:\SkyDLCContent\
 | **Патч из папки…** | Собирает любую папку в отдельный пакет `zz_<имя папки>.skydlc` в папке dlc, не трогая основной пакет и папку контента. Внутри папки — те же пути, по которым файлы ищет игра (см. ниже). |
 | **Проверить пакеты** | Расшифровывает каждый `.skydlc` из папки dlc текущим ключом. |
 
-### Машины и скины — самый простой способ
+### Замена машин и моделей игры — самый простой способ
 
-Папка, в которой модели лежат под своими именами:
+Папка, в которой модели названы так же, как модель в игре (имя из `vehicles.ide`):
 
 ```
 D:\SkyDLCPatches\cars\
-    alfa.dff, alfa.txd          машина  -> resources\sky_carshop\models\alfa.dff
-    tundra.dff, tundra.txd
-    skins\bee.dff, bee.txd      скин    -> resources\sky_skins\models\bee.dff
+    intruder.dff, intruder.txd    заменит машину 546 (Intruder)
+    voodoo.dff, voodoo.txd        заменит 412
+    skins\bee.dff, bee.txd        скин для sky_skins     -> resources\sky_skins\models\bee.dff
+    custom\alfa.dff, alfa.txd     своя машина sky_carshop (ID 20000+) -> resources\sky_carshop\models\alfa.dff
 ```
 
-Файлы в корне папки (или в подпапке `vehicles` / `машины`) — транспорт, в подпапке `skins` / `скины` — скины.
-«Патч из папки…» → выбрать папку → в dlc появится `zz_<имя папки>.skydlc`.
+«Патч из папки…» → выбрать папку → в dlc появится `zz_<имя папки>.skydlc`. Модели из корня папки студия
+собирает в архив `models\zz_<имя папки>.img` внутри патча, а клиент сам подключает его раньше основных архивов
+(дописывает строку в `gta.dat` при запуске). Ресурсы и скрипты для такой замены не нужны: машина в салоне
+остаётся на своём ID, а выглядит по-новому.
 
-Чтобы машина появилась в игре, её надо прописать в `sky_carshop\settings.lua` (свой ID от 20000, базовая
-модель GTA, `['dff'] = 'models/alfa.dff'`, `['txd'] = 'models/alfa.txd'`, название, цена…), скин — в
-`sky_skins\settings.lua`. Сами файлы моделей в ресурс класть и прописывать в `meta.xml` не нужно.
+Модели из `models\gta3.img` и `gta_int.img` так заменить нельзя: эти архивы игра открывает раньше `gta.dat`.
+Все машины Sky лежат в `data\Paths\skyproject_vehs.img`, их можно.
+
+Своя машина (`custom\`) и скин (`skins\`) прописываются ещё в `sky_carshop\settings.lua` / `sky_skins\settings.lua`.
 
 ### Патч с машиной или моделью ресурса
 

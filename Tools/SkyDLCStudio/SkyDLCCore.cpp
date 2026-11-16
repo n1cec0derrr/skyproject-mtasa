@@ -951,46 +951,56 @@ namespace sky
             return mapped;
         }
 
-        // Simple model folders in a folder patch: models named after what they are, without resource paths.
-        //   <folder>/alfa.dff, alfa.txd            -> resources/sky_carshop/models/alfa.dff  (vehicles)
-        //   <folder>/vehicles/alfa.dff (or машины/) -> the same
+        // Simple model folders in a folder patch: models named after what they replace, no resource paths.
+        //   <folder>/intruder.dff, intruder.txd    -> archive models/zz_<folder>.img inside the patch: replaces the
+        //                                            game model (546). The client puts the archive into gta.dat
+        //                                            before the others, so it wins over the main package.
         //   <folder>/skins/bee.dff (or скины/)      -> resources/sky_skins/models/bee.dff
-        // sky_carshop and sky_skins load ['dff'] = 'models/<name>.dff' from these paths.
-        size_t MapModelFolders(std::vector<Item>& files, size_t& vehicles, size_t& skins)
+        //   <folder>/custom/alfa.dff (or кастом/)   -> resources/sky_carshop/models/alfa.dff (own IDs 20000+)
+        // Returns the files taken out for the archive.
+        std::vector<Item> MapModelFolders(std::vector<Item>& files, size_t& custom, size_t& skins)
         {
-            vehicles = skins = 0;
+            std::vector<Item> archive;
+            std::vector<Item> kept;
+            custom = skins = 0;
             for (Item& item : files)
             {
                 const std::wstring extension = LowerW(item.path.extension().wstring());
                 if (extension != L".dff" && extension != L".txd" && extension != L".col")
+                {
+                    kept.push_back(std::move(item));
                     continue;
+                }
 
                 const std::string lower = Lower(item.name);
                 const size_t      slash = lower.find('/');
-                std::string       resource;
-                std::string       file;
                 if (slash == std::string::npos)
                 {
-                    resource = "sky_carshop";
-                    file = item.name;
+                    archive.push_back(std::move(item));
+                    continue;
                 }
-                else if (lower.find('/', slash + 1) == std::string::npos)
+
+                if (lower.find('/', slash + 1) == std::string::npos)
                 {
                     const std::wstring folder = LowerW(Widen(item.name.substr(0, slash)));
-                    if (folder == L"vehicles" || folder == L"машины" || folder == L"транспорт")
+                    std::string        resource;
+                    if (folder == L"custom" || folder == L"кастом" || folder == L"vehicles" || folder == L"машины")
                         resource = "sky_carshop";
                     else if (folder == L"skins" || folder == L"скины")
                         resource = "sky_skins";
-                    file = item.name.substr(slash + 1);
+                    if (!resource.empty())
+                    {
+                        item.name = "resources/" + resource + "/models/" + item.name.substr(slash + 1);
+                        (resource == "sky_skins" ? skins : custom)++;
+                    }
                 }
-                if (resource.empty())
-                    continue;
-
-                item.name = "resources/" + resource + "/models/" + file;
-                (resource == "sky_skins" ? skins : vehicles)++;
+                kept.push_back(std::move(item));
             }
-            std::sort(files.begin(), files.end(), [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); });
-            return vehicles + skins;
+            const auto byName = [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); };
+            std::sort(kept.begin(), kept.end(), byName);
+            std::sort(archive.begin(), archive.end(), byName);
+            files = std::move(kept);
+            return archive;
         }
 
         // ------------------------------------------------------------ what was built last time
@@ -2529,10 +2539,11 @@ namespace sky
         size_t       skippedScripts = 0;
         const size_t resourceFiles = MapResourceFolders(folder, content.files, skippedScripts);
 
-        size_t vehicleModels = 0, skinModels = 0;
-        if (MapModelFolders(content.files, vehicleModels, skinModels))
-            reporter.Log(L"Модели: транспорт — " + std::to_wstring(vehicleModels) + L" файлов в resources\\sky_carshop\\models, скины — " +
-                         std::to_wstring(skinModels) + L" в resources\\sky_skins\\models");
+        size_t            customModels = 0, skinModels = 0;
+        std::vector<Item> gameModels = MapModelFolders(content.files, customModels, skinModels);
+        if (customModels || skinModels)
+            reporter.Log(L"Модели: свои машины sky_carshop — " + std::to_wstring(customModels) + L" файлов, скины sky_skins — " +
+                         std::to_wstring(skinModels));
         if (resourceFiles || skippedScripts)
             reporter.Log(L"Ресурсы MTA (папки с meta.xml): файлов в resources\\ — " + std::to_wstring(resourceFiles) +
                          L", скриптов и meta.xml пропущено — " + std::to_wstring(skippedScripts) + L" (их отдаёт сервер)");
@@ -2541,7 +2552,7 @@ namespace sky
             for (const std::wstring& problem : archive.problems)
                 Fail(Native(archive.id) + L": " + problem);
 
-        if (content.archives.empty() && content.files.empty())
+        if (content.archives.empty() && content.files.empty() && gameModels.empty())
             Fail(L"в папке нет файлов: " + folder.wstring());
 
         // A model outside an archive and outside resources\ is never opened by the game
@@ -2566,6 +2577,25 @@ namespace sky
         const std::wstring package = L"zz_" + name + L".skydlc";
         if (LowerW(package) == LowerW(PATCH_PACKAGE))
             Fail(L"имя zz_patch занято патчем студии, переименуйте папку");
+
+        // Models at the root of the folder: an archive of the patch that replaces the game models by name
+        if (!gameModels.empty())
+        {
+            Archive archive;
+            archive.id = "models/zz_" + Narrow(name) + ".img";
+            archive.dir = folder;
+            for (Item& item : gameModels)
+            {
+                if (!IsValidImgName(item.name))
+                    Fail(L"«" + Widen(item.name) + L"»: имя не подходит для архива игры (латиница, до 23 символов)");
+                if ((item.size + SECTOR - 1) / SECTOR > 0xFFFF)
+                    Fail(L"«" + Widen(item.name) + L"»: файл больше 128 МБ, архив игры такой не вместит");
+                archive.items.push_back(std::move(item));
+            }
+            reporter.Log(L"Замена моделей игры: " + std::to_wstring(archive.items.size()) + L" файлов в архиве " + Native(archive.id) +
+                         L" (клиент подключит его раньше основных архивов)");
+            content.archives.push_back(std::move(archive));
+        }
 
         std::vector<ImgPart> imgs;
         for (Archive& archive : content.archives)

@@ -5,6 +5,7 @@
 #include <array>
 #include <cstring>
 #include <limits>
+#include <set>
 
 namespace SkyDLC
 {
@@ -296,7 +297,83 @@ namespace SkyDLC
             }
         }
 
+        AddPatchArchivesToGtaDat();
+
         return success;
+    }
+
+    // An archive (.img) that a patch (zz_*.skydlc) brings is put into data/gta.dat before every other IMG line.
+    // The game takes a model from the first archive that has it, so the patch replaces models of the main
+    // package (a car in data/Paths/skyproject_vehs.img) and no patch has to carry its own gta.dat.
+    // gta3.img and gta_int.img are opened by the engine before gta.dat: their models a patch cannot replace.
+    void CSkyDLCManager::AddPatchArchivesToGtaDat()
+    {
+        if (m_patchArchives.empty())
+            return;
+
+        const auto it = m_files.find("data/gta.dat");
+        if (it == m_files.end())
+        {
+            WriteDebugEvent("SkyDLC: patch archives not added, no data/gta.dat in the packages");
+            return;
+        }
+
+        std::string original;
+        if (!ReadFile("data/gta.dat", original))
+        {
+            WriteDebugEvent("SkyDLC: patch archives not added, data/gta.dat cannot be read");
+            return;
+        }
+
+        const std::string newline = original.find("\r\n") != std::string::npos ? "\r\n" : "\n";
+
+        // Where the first IMG line starts, and which archives gta.dat already has
+        size_t                firstImg = std::string::npos;
+        std::set<std::string> listed;
+        for (size_t start = 0; start < original.size();)
+        {
+            size_t end = original.find('\n', start);
+            if (end == std::string::npos)
+                end = original.size();
+
+            std::string line = original.substr(start, end - start);
+            const size_t first = line.find_first_not_of(" \t");
+            line = first == std::string::npos ? std::string() : line.substr(first);
+            while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t'))
+                line.pop_back();
+
+            if (line.size() > 4 && NormalizePath(line.substr(0, 4)) == "img ")
+            {
+                if (firstImg == std::string::npos)
+                    firstImg = start;
+                std::string path = line.substr(4);
+                path.erase(0, path.find_first_not_of(" \t"));
+                listed.insert(NormalizePath(path));
+            }
+            start = end + 1;
+        }
+
+        std::string lines;
+        for (const std::string& archive : m_patchArchives)
+        {
+            if (listed.count(archive))
+                continue;
+            std::string native = archive;
+            std::replace(native.begin(), native.end(), '/', '\\');
+            lines += "IMG " + native + newline;
+            WriteDebugEvent(SString("SkyDLC: patch archive added to gta.dat: %s", archive.c_str()));
+        }
+        if (lines.empty())
+            return;
+
+        auto text = std::make_shared<std::string>(original);
+        text->insert(firstImg == std::string::npos ? text->size() : firstImg, lines);
+
+        DLCFile file;
+        file.package = it->second.package;
+        file.size = text->size();
+        file.memory = std::move(text);
+        it->second = std::move(file);
     }
 
     bool CSkyDLCManager::LoadPackage(const fs::path& path, const AESKey& masterKey)
@@ -308,8 +385,20 @@ namespace SkyDLC
         if (!package->Open(path, masterKey, files))
             return false;
 
+        const std::string fileName = NormalizePath(path.filename().string());
+        const bool        isPatch = fileName.rfind("zz_", 0) == 0;
+
         for (auto& [name, file] : files)
-            m_files[NormalizePath(std::move(name))] = file;
+        {
+            std::string normalized = NormalizePath(std::move(name));
+
+            // A new archive of a patch (not one that replaces an archive of the main package as a whole)
+            if (isPatch && normalized.size() > 4 && normalized.compare(normalized.size() - 4, 4, ".img") == 0 && !m_files.count(normalized) &&
+                std::find(m_patchArchives.begin(), m_patchArchives.end(), normalized) == m_patchArchives.end())
+                m_patchArchives.push_back(normalized);
+
+            m_files[std::move(normalized)] = file;
+        }
 
         WriteDebugEvent(SString("SkyDLC: loaded package: %s, files=%d", path.filename().string().c_str(), static_cast<int>(files.size())));
 
@@ -319,6 +408,7 @@ namespace SkyDLC
 
     void CSkyDLCManager::Shutdown()
     {
+        m_patchArchives.clear();
         m_files.clear();
         m_packages.clear();
     }
@@ -348,6 +438,13 @@ namespace SkyDLC
             return true;
 
         const uint32_t available = static_cast<uint32_t>(std::min<uint64_t>(file.size - offset, size));
+
+        if (file.memory)
+        {
+            std::memcpy(buffer, file.memory->data() + offset, available);
+            bytesRead = available;
+            return true;
+        }
 
         if (available > 0 && !file.package->Read(file.offset + offset, static_cast<uint8_t*>(buffer), available))
             return false;

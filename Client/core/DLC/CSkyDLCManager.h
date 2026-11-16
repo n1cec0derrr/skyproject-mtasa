@@ -31,6 +31,9 @@ namespace SkyDLC
         CSkyDLCPackage* package = nullptr;
         uint64_t        offset = 0;
         uint64_t        size = 0;
+        // Set for a file the client made itself (data/gta.dat with the patch archives); package is then
+        // only the package the original came from
+        std::shared_ptr<const std::string> memory;
     };
 
     class CSkyDLCManager
@@ -58,8 +61,10 @@ namespace SkyDLC
 
     private:
         bool LoadPackage(const fs::path& path, const AESKey& masterKey);
+        void AddPatchArchivesToGtaDat();
 
         std::vector<std::unique_ptr<CSkyDLCPackage>> m_packages;
+        std::vector<std::string>                     m_patchArchives;  // new .img archives of zz_* packages
         std::unordered_map<std::string, DLCFile>     m_files;
     };
 
