@@ -186,13 +186,10 @@ bool CClientDFF::DoReplaceModel(unsigned short usModel, bool bAlphaTransparency)
         }
         else if (CClientMarkerManager::IsMarkerModel(usModel))
         {
-            bool wasReplaced = ReplaceObjectModel(pClump, usModel, bAlphaTransparency);
-
-            // 'Restream' 3D markers
-            if (wasReplaced)
-                g_pClientGame->ReinitMarkers();
-
-            return wasReplaced;
+            // Sky Project: markers keep their own look, as on the old client. Sky resources reuse these IDs
+            // for objects (ofis_int puts an office on 1559), and with a marker restream every "arrow"
+            // marker in the city turned into that office.
+            return ReplaceObjectModel(pClump, usModel, bAlphaTransparency);
         }
         else if (CClientObjectManager::IsValidModel(usModel))
         {
@@ -311,9 +308,8 @@ void CClientDFF::InternalRestoreModel(unsigned short usModel)
     if (CClientObjectManager::IsValidModel(usModel) && CVehicleUpgrades::IsUpgrade(usModel))
         m_pManager->GetVehicleManager()->RestreamVehicleUpgrades(usModel);
 
-    // 'Restream' 3D markers
-    if (CClientMarkerManager::IsMarkerModel(usModel))
-        g_pClientGame->ReinitMarkers();
+    // Sky Project: no marker restream here either (see ReplaceModel): it would rebuild the markers
+    // from whatever marker model another resource has replaced at that moment.
 
     // Force dff reload if this model id is used again
     SLoadedClumpInfo* pInfo = MapFind(m_LoadedClumpInfoMap, usModel);

@@ -417,3 +417,7 @@ utils/vswhere.exe
 !vendor/mysql/lib/x86/*.lib
 !vendor/nvapi/x86/
 !vendor/nvapi/x86/*.lib
+
+# Sky Project: local leftovers, never commit
+/Bin.zip
+/Tools/SkyDLCPacker/

@@ -79,6 +79,28 @@ size_t EngineStreamingGetMaxMemory() {
     return static_cast<size_t>(sizeMB) * 1024 * 1024;
 }
 
+// Sky Project: the old Sky client had these two, Sky Project scripts (nrp_memory_sa) call them.
+// Reload one model: vehicles, objects and peds using it stream out and back in.
+bool EngineRestreamModel(std::uint32_t modelId) {
+    if (modelId >= static_cast<std::uint32_t>(g_pGame->GetCountOfAllFileIDs()))
+        throw std::invalid_argument("Invalid model ID");
+    g_pClientGame->RestreamModel(static_cast<unsigned short>(modelId));
+    return true;
+}
+
+// Free streaming memory taken by the map without the map disappearing.
+// The old way (remove all buildings and reinit streaming) unloaded everything on screen at once,
+// and the whole map vanished and loaded again. Now the game's own cleanup runs, the one it uses when
+// memory is full: models not drawn for the longest time go first, then the ones behind the camera.
+// What is on screen stays. Frees down to 60% of the streaming memory.
+bool EngineRestreamMap() {
+    const std::uint32_t available = static_cast<std::uint32_t>(g_pCore->GetStreamingMemory());
+    if (available == 0)
+        return false;
+    g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
+    return true;
+}
+
 // Set streaming buffer size
 bool EngineStreamingSetBufferSize(size_t sizeBytes) {
     const auto sizeBlocks = sizeBytes / 2048;
@@ -162,6 +184,8 @@ void CLuaEngineDefs::LoadFunctions()
         {"engineStreamingSetMemorySize", ArgumentParser<EngineStreamingSetMemorySize>},
         {"engineStreamingGetMemorySize", ArgumentParser<EngineStreamingGetMemorySize>},
         {"engineStreamingGetMaxMemory", ArgumentParser<EngineStreamingGetMaxMemory>},
+        {"engineRestreamModel", ArgumentParser<EngineRestreamModel>},
+        {"engineRestreamMap", ArgumentParser<EngineRestreamMap>},
         {"engineStreamingSetModelCacheLimits", ArgumentParser<EngineStreamingSetModelCacheLimits>},
         {"engineStreamingRestoreMemorySize", ArgumentParser<EngineStreamingRestoreMemorySize>},
         {"engineStreamingSetBufferSize", ArgumentParser<EngineStreamingSetBufferSize>},
