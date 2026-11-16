@@ -33,10 +33,19 @@ CClientIMGManager::~CClientIMGManager()
 
 void CClientIMGManager::InitDefaultBufferSize()
 {
-    // Sky Project: nothing to do, as in upstream MTA. GTA sizes its streaming buffer itself from the biggest
-    // file of every archive it loads (CStreaming::LoadCdDirectory), our archives from gta.dat included.
-    // Resizing it here freed and reallocated the buffer behind the fastman92 limit adjuster's back,
-    // which corrupted the heap right after connecting to a server.
+    // Sky Project: our archives hold files far bigger than the default gta3.img (up to ~17 MB). MTA restores
+    // the streaming buffer to this "default" when leaving a server (~CClientGame), so it must be the real
+    // largest file of the loaded archives: with the stock guess the buffer shrank to 5 MB on reconnect and
+    // the next big model overflowed it.
+    const auto streaming = g_pGame->GetStreaming();
+    const auto fileCount = g_pGame->GetCountOfAllFileIDs();
+
+    for (int32_t id = 0; id < fileCount; id++)
+        m_GTALargestFileSizeBlocks = std::max(m_GTALargestFileSizeBlocks, streaming->GetStreamingInfo(id)->sizeInBlocks);
+
+    WriteDebugEvent(SString("Sky: largest archive file %u blocks, streaming buffer %u bytes", m_GTALargestFileSizeBlocks, streaming->GetStreamingBufferSize()));
+
+    UpdateStreamerBufferSize();
 }
 
 CClientIMG* CClientIMGManager::GetElementFromArchiveID(unsigned char ucArchiveID)
