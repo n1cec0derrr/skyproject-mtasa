@@ -88,10 +88,16 @@ bool EngineRestreamModel(std::uint32_t modelId) {
     return true;
 }
 
-// Reload the map buildings only (engineRestreamWorld also reloads every vehicle, ped and object)
+// Free streaming memory taken by the map without the map disappearing.
+// The old way (remove all buildings and reinit streaming) unloaded everything on screen at once,
+// and the whole map vanished and loaded again. Now the game's own cleanup runs, the one it uses when
+// memory is full: models not drawn for the longest time go first, then the ones behind the camera.
+// What is on screen stays. Frees down to 60% of the streaming memory.
 bool EngineRestreamMap() {
-    g_pGame->GetStreaming()->RemoveBigBuildings();
-    g_pGame->GetStreaming()->ReinitStreaming();
+    const std::uint32_t available = static_cast<std::uint32_t>(g_pCore->GetStreamingMemory());
+    if (available == 0)
+        return false;
+    g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
     return true;
 }
 
