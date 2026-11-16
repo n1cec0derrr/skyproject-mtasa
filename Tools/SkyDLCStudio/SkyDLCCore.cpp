@@ -1548,19 +1548,16 @@ namespace sky
                 reporter.Log(L"ВНИМАНИЕ: этих файлов нет ни в пакетах, ни на диске, игра упадёт при загрузке:" + list(missing));
         }
 
-        // Packages in the dlc folder that the studio made (by the record of the last build or by the names
-        // it gives) but that no current record points at. Lower case names.
-        std::set<std::wstring> StalePackages(const Settings& settings, const Content& content, const State& state, const std::set<std::wstring>& before)
+        // Packages in the dlc folder that this content folder built before (by the record of its last build)
+        // but that no current record points at. Lower case names.
+        // Only what this content folder built: a package with a studio name that came from elsewhere
+        // (the main sky_project.skydlc copied in, another content folder) is never removed.
+        std::set<std::wstring> StalePackages(const Settings& settings, const Content&, const State& state, const std::set<std::wstring>& before)
         {
             if (state.packages.empty())
                 return {};  // the studio has not built into this folder
 
-            std::set<std::wstring> ours = before;
-            ours.insert(LowerW(SINGLE_PACKAGE));
-            ours.insert(LowerW(FILES_PACKAGE));
-            ours.insert(LowerW(PATCH_PACKAGE));
-            for (const Archive& archive : content.archives)
-                ours.insert(LowerW(archive.PackageName()));
+            const std::set<std::wstring>& ours = before;
 
             std::set<std::wstring> used;
             for (const auto& [key, record] : state.packages)
@@ -1974,8 +1971,17 @@ namespace sky
             }
         }
 
-        // Packages of the studio left from an old layout
-        for (const std::wstring& name : StalePackages(settings, content, state, {}))
+        // Packages this content folder built in the other layout: the build replaces and removes them
+        std::set<std::wstring> oldLayout;
+        for (const auto& [key, record] : state.packages)
+        {
+            const std::wstring name = LowerW(record.fileName);
+            std::error_code    existsError;
+            const bool listed = std::any_of(result.packages.begin(), result.packages.end(), [&](const PackageView& v) { return LowerW(v.fileName) == name; });
+            if (!listed && name != LowerW(ExpectedPackage(settings, record.id)) && fs::is_regular_file(settings.dlc / record.fileName, existsError))
+                oldLayout.insert(name);
+        }
+        for (const std::wstring& name : oldLayout)
         {
             PackageView view;
             view.fileName = name;
@@ -2298,6 +2304,13 @@ namespace sky
         for (const Archive& archive : content.archives)
             for (const std::wstring& problem : archive.problems)
                 Fail(Native(archive.id) + L": " + problem);
+
+        // A full DLC always has the game archives (gta3.img and the others). A content folder without any
+        // is a mistake: usually new models put there to add on top of the main package.
+        if (content.archives.empty())
+            Fail(L"в папке контента нет ни одной папки .img (" + settings.content.wstring() + L"). "
+                 L"Полный пакет игры так собрать нельзя. Чтобы добавить модели или файлы поверх основного пакета "
+                 L"(машины, скины, правки), используйте «Патч из папки».");
 
         fs::create_directories(settings.dlc);
 
