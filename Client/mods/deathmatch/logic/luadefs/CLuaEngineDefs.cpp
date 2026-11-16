@@ -79,6 +79,22 @@ size_t EngineStreamingGetMaxMemory() {
     return static_cast<size_t>(sizeMB) * 1024 * 1024;
 }
 
+// Sky Project: the old Sky client had these two, Sky Project scripts (nrp_memory_sa) call them.
+// Reload one model: vehicles, objects and peds using it stream out and back in.
+bool EngineRestreamModel(std::uint32_t modelId) {
+    if (modelId >= static_cast<std::uint32_t>(g_pGame->GetCountOfAllFileIDs()))
+        throw std::invalid_argument("Invalid model ID");
+    g_pClientGame->RestreamModel(static_cast<unsigned short>(modelId));
+    return true;
+}
+
+// Reload the map buildings only (engineRestreamWorld also reloads every vehicle, ped and object)
+bool EngineRestreamMap() {
+    g_pGame->GetStreaming()->RemoveBigBuildings();
+    g_pGame->GetStreaming()->ReinitStreaming();
+    return true;
+}
+
 // Set streaming buffer size
 bool EngineStreamingSetBufferSize(size_t sizeBytes) {
     const auto sizeBlocks = sizeBytes / 2048;
@@ -162,6 +178,8 @@ void CLuaEngineDefs::LoadFunctions()
         {"engineStreamingSetMemorySize", ArgumentParser<EngineStreamingSetMemorySize>},
         {"engineStreamingGetMemorySize", ArgumentParser<EngineStreamingGetMemorySize>},
         {"engineStreamingGetMaxMemory", ArgumentParser<EngineStreamingGetMaxMemory>},
+        {"engineRestreamModel", ArgumentParser<EngineRestreamModel>},
+        {"engineRestreamMap", ArgumentParser<EngineRestreamMap>},
         {"engineStreamingSetModelCacheLimits", ArgumentParser<EngineStreamingSetModelCacheLimits>},
         {"engineStreamingRestoreMemorySize", ArgumentParser<EngineStreamingRestoreMemorySize>},
         {"engineStreamingSetBufferSize", ArgumentParser<EngineStreamingSetBufferSize>},
