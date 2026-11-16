@@ -951,6 +951,48 @@ namespace sky
             return mapped;
         }
 
+        // Simple model folders in a folder patch: models named after what they are, without resource paths.
+        //   <folder>/alfa.dff, alfa.txd            -> resources/sky_carshop/models/alfa.dff  (vehicles)
+        //   <folder>/vehicles/alfa.dff (or машины/) -> the same
+        //   <folder>/skins/bee.dff (or скины/)      -> resources/sky_skins/models/bee.dff
+        // sky_carshop and sky_skins load ['dff'] = 'models/<name>.dff' from these paths.
+        size_t MapModelFolders(std::vector<Item>& files, size_t& vehicles, size_t& skins)
+        {
+            vehicles = skins = 0;
+            for (Item& item : files)
+            {
+                const std::wstring extension = LowerW(item.path.extension().wstring());
+                if (extension != L".dff" && extension != L".txd" && extension != L".col")
+                    continue;
+
+                const std::string lower = Lower(item.name);
+                const size_t      slash = lower.find('/');
+                std::string       resource;
+                std::string       file;
+                if (slash == std::string::npos)
+                {
+                    resource = "sky_carshop";
+                    file = item.name;
+                }
+                else if (lower.find('/', slash + 1) == std::string::npos)
+                {
+                    const std::wstring folder = LowerW(Widen(item.name.substr(0, slash)));
+                    if (folder == L"vehicles" || folder == L"машины" || folder == L"транспорт")
+                        resource = "sky_carshop";
+                    else if (folder == L"skins" || folder == L"скины")
+                        resource = "sky_skins";
+                    file = item.name.substr(slash + 1);
+                }
+                if (resource.empty())
+                    continue;
+
+                item.name = "resources/" + resource + "/models/" + file;
+                (resource == "sky_skins" ? skins : vehicles)++;
+            }
+            std::sort(files.begin(), files.end(), [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); });
+            return vehicles + skins;
+        }
+
         // ------------------------------------------------------------ what was built last time
 
         struct FileRecord
@@ -2486,6 +2528,11 @@ namespace sky
 
         size_t       skippedScripts = 0;
         const size_t resourceFiles = MapResourceFolders(folder, content.files, skippedScripts);
+
+        size_t vehicleModels = 0, skinModels = 0;
+        if (MapModelFolders(content.files, vehicleModels, skinModels))
+            reporter.Log(L"Модели: транспорт — " + std::to_wstring(vehicleModels) + L" файлов в resources\\sky_carshop\\models, скины — " +
+                         std::to_wstring(skinModels) + L" в resources\\sky_skins\\models");
         if (resourceFiles || skippedScripts)
             reporter.Log(L"Ресурсы MTA (папки с meta.xml): файлов в resources\\ — " + std::to_wstring(resourceFiles) +
                          L", скриптов и meta.xml пропущено — " + std::to_wstring(skippedScripts) + L" (их отдаёт сервер)");
