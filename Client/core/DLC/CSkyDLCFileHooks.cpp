@@ -162,8 +162,7 @@ namespace SkyDLC
 
             const uint64_t offset = overlapped ? (static_cast<uint64_t>(overlapped->OffsetHigh) << 32) | overlapped->Offset : state.position;
 
-            WriteDebugEvent(SString("[SkyDLC] ReadFile: offset=%llu requested=%lu fileSize=%llu", offset, bytesToRead, state.file->size));
-
+            // No logging here: the streaming thread reads thousands of times, each log line is a file write
             uint32_t read = 0;
 
             if (!GetDLCManager().Read(*state.file, offset, buffer, bytesToRead, read))

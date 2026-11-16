@@ -796,12 +796,25 @@ static const SString DoUserAssistedSearch() noexcept
 //
 //
 ///////////////////////////////////////////////////////////////
+// Sky Project: a GTA folder is recognised by models\gta3.img, or by gta_sa.exe when the
+// archives come from .skydlc packages (in <folder>\dlc or next to the launcher)
+static bool IsGameDirectory(const SString& strPath)
+{
+    if (strPath.empty())
+        return false;
+
+    if (FileExists(PathJoin(strPath, MTA_GTA_KNOWN_FILE_NAME)))
+        return true;
+
+    return FileExists(PathJoin(strPath, GTA_EXE_NAME)) && (HasSkyDLCPackages(strPath) || HasSkyDLCPackages(GetLaunchPath()));
+}
+
 ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 {
     // Sky Project: GTA San Andreas is bundled inside runtime.
     const SString portableGamePath = PathJoin(GetLaunchPath(), "runtime\\GTA San Andreas");
 
-    if (FileExists(PathJoin(portableGamePath, GTA_EXE_NAME)) && FileExists(PathJoin(portableGamePath, MTA_GTA_KNOWN_FILE_NAME)))
+    if (FileExists(PathJoin(portableGamePath, GTA_EXE_NAME)) && IsGameDirectory(portableGamePath))
     {
         strOutResult = portableGamePath;
         return GAME_PATH_OK;
@@ -835,7 +848,7 @@ ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 
         WriteDebugEvent(SString("GetGamePath: Checking '%s' for '%s'", pathList[i].c_str(), MTA_GTA_KNOWN_FILE_NAME));
         SString strCheckPath = PathJoin(pathList[i], MTA_GTA_KNOWN_FILE_NAME);
-        if (FileExists(strCheckPath))
+        if (IsGameDirectory(pathList[i]))
         {
             strOutResult = pathList[i];
             // Update registry.
@@ -890,14 +903,14 @@ ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 
     // Check browse result
     SString strBrowseCheckPath = PathJoin(strOutResult, MTA_GTA_KNOWN_FILE_NAME);
-    if (!FileExists(strBrowseCheckPath))
+    if (!IsGameDirectory(strOutResult))
     {
         AddReportLog(3207, SString("GetGamePath: Browse result invalid - '%s' not found, trying DoUserAssistedSearch", strBrowseCheckPath.c_str()));
         // If browse didn't help, try another method
         strOutResult = DoUserAssistedSearch();
 
         SString strSearchCheckPath = PathJoin(strOutResult, MTA_GTA_KNOWN_FILE_NAME);
-        if (!FileExists(strSearchCheckPath))
+        if (!IsGameDirectory(strOutResult))
         {
             AddReportLog(3208, SString("GetGamePath: DoUserAssistedSearch failed - '%s' not found, giving up", strSearchCheckPath.c_str()));
             // If still not found, give up

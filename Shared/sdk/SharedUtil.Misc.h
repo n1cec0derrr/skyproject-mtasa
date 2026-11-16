@@ -141,6 +141,10 @@ namespace SharedUtil
     // Returns true if current process is GTA (i.e not MTA process)
     bool IsGTAProcess();
 
+    // Sky Project: true if <strDirectory>\dlc holds .skydlc packages. The game archives
+    // (models\gta3.img etc.) then come from the packages and need not exist on disk.
+    bool HasSkyDLCPackages(const SString& strDirectory);
+
     // Returns true if the pointer points to committed, readable memory
     bool IsReadablePointer(const void* ptr, size_t size);
 

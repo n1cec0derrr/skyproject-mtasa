@@ -95,6 +95,24 @@ CORE_API int InitializeCore()
 
     WriteDebugEvent(SString("ModuleFileName: %s", *GetLaunchPathFilename()));
 
+    // Sky Project: the fastman92 limit adjuster and the streaming memory fix from the game folder.
+    // They patch gta_sa.exe, so they load before anything else runs, the way the old Sky client did.
+    // Without the limit adjuster the game cannot take our archives and model counts.
+    for (const wchar_t* name : {L"$Fla92.dll", L"StreamMemFix.asi"})
+    {
+        const fs::path module = g_gtaDirectory / name;
+        std::error_code error;
+
+        if (!fs::is_regular_file(module, error))
+        {
+            WriteDebugEvent(SString("Sky: %s not found in the game folder", *ToUTF8(name)));
+            continue;
+        }
+
+        const HMODULE handle = LoadLibraryW(module.c_str());
+        WriteDebugEvent(SString("Sky: load %s: %s (error %u)", *ToUTF8(name), handle ? "ok" : "failed", handle ? 0u : GetLastError()));
+    }
+
     SetMemoryAllocationFailureHandler();
 
     g_pCore = new CCore();

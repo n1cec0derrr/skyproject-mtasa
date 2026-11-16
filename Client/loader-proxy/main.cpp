@@ -379,9 +379,16 @@ VOID OnGameLaunch()
     }
 
     // Check if models/gta3.img exists because the process will lock indefinitely otherwise.
+    // Sky Project: the archives may come from .skydlc packages instead, core.dll serves them
+    // to the game before it opens any of them.
     const fs::path gtaImage = gtaDirectory / "models" / "gta3.img";
+    const bool     hasDlcPackages = SharedUtil::HasSkyDLCPackages(ToUTF8(gtaDirectory.wstring())) ||
+                                (!launcherPath.empty() && SharedUtil::HasSkyDLCPackages(ToUTF8(launcherPath.parent_path().wstring())));
 
-    if (!fs::is_regular_file(gtaImage))
+    if (hasDlcPackages)
+        AddLaunchLog("Sky DLC packages found, gta3.img on disk is optional");
+
+    if (!hasDlcPackages && !fs::is_regular_file(gtaImage))
     {
         AddLaunchLog("gta3.img not found (%d): %s", ec.value(), ec.message().c_str());
         std::wstring message = L"gta3.img not found:\n" + gtaImage.wstring();
