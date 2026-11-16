@@ -85,6 +85,12 @@ CGameSA::CGameSA()
         m_iCheckStatus = 0;
 
         const unsigned int modelInfoMax = GetCountOfAllFileIDs();
+
+        // Sky Project: where the limit adjuster put the arrays (unmodified game: 8E4CC0 9654B0 A9B0C8, 20000 25000)
+        WriteDebugEvent(SString("Sky: streaming info %08X..%08X count %u, model info %08X, TXD base %d, COL base %d",
+                                *(DWORD*)(0x5B8B08 + 6), *(DWORD*)(0x5B8AFA + 2), modelInfoMax, *(DWORD*)(0x403DA4 + 3), GetBaseIDforTXD(),
+                                GetBaseIDforCOL()));
+
         ModelInfo = new CModelInfoSA[modelInfoMax];
         ObjectGroupsInfo = new CObjectGroupPhysicalPropertiesSA[OBJECTDYNAMICINFO_MAX];
 
