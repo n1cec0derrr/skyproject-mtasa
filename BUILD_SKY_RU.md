@@ -2,6 +2,7 @@
 
 Клиент собирается из этого репозитория в папку `Bin`. Карта, машины и данные Sky Project
 приходят из зашифрованного пакета `Bin\dlc\sky_project.skydlc`, `.img` на диске не нужны.
+Что раздаёт лаунчер и как выпускать обновления — в `LAUNCHER_RU.md`.
 
 ## Что нужно
 
@@ -44,10 +45,14 @@ Bin\
     MTA\ ...                   модули и данные MTA (из сборки и install_data)
     dlc\sky_project.skydlc     пакет Sky Project (собирается Tools\SkyDLCStudio)
     runtime\GTA San Andreas\   GTA SA 1.0, без .img
-        gta_sa.exe, eax.dll, ogg.dll, vorbis*.dll, stream.ini, anim\, audio\, data\, models\, text\
+        gta_sa.exe, eax.dll, ogg.dll, vorbis*.dll, stream.ini, anim\, data\, models\, text\   из GTA SA
+        audio\                                звук Sky Project (урезанный, ~130 МБ, со своим audio\config)
         $Fla92.dll, DllTricks.dll, MinHook.x86.dll, MinHook.x64.dll, zlib1.dll,
         fastman92limitAdjuster_GTASA.ini      лимит-аджастер Sky Project
 ```
+
+- Папку `audio` берите целиком из клиента Sky Project, вместе с `audio\config`: файлы
+  `banklkup.dat` и `traklkup.dat` описывают именно эти звуковые банки, с полным звуком GTA они не совпадают.
 
 - Папку `runtime\GTA San Andreas` клиент использует всегда, путь из реестра не нужен.
 - Лимит-аджастер `$Fla92.dll` загружает `core.dll` при старте игры. Без него карта и машины

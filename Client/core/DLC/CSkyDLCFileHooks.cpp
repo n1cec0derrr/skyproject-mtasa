@@ -96,12 +96,22 @@ namespace SkyDLC
                 return GetRootWithSlash(std::filesystem::path(executable).parent_path().wstring());
             }();
 
+            // Package paths are relative to the GTA folder, so that one goes first. The game also opens files
+            // after CFileMgr::SetDir("DATA") (current directory ...\data, name "TIMECYC.DAT"): matching only
+            // against the current directory missed data/timecyc.dat, handling.cfg, carcols.dat and the like,
+            // and the game silently read the plain GTA files from disk.
             std::wstring relative;
 
-            if (!GetRelativePath(fullPath, GetRootWithSlash(currentDirectory), relative) && !GetRelativePath(fullPath, executableDirectory, relative))
-                return nullptr;
+            if (GetRelativePath(fullPath, executableDirectory, relative))
+            {
+                if (const DLCFile* file = GetDLCManager().FindFile(ToUTF8(relative.c_str())))
+                    return file;
+            }
 
-            return GetDLCManager().FindFile(ToUTF8(relative.c_str()));
+            if (GetRelativePath(fullPath, GetRootWithSlash(currentDirectory), relative))
+                return GetDLCManager().FindFile(ToUTF8(relative.c_str()));
+
+            return nullptr;
         }
 
         HANDLE OpenVirtualFile(const DLCFile& file)

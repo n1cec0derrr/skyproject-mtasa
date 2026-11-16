@@ -42,6 +42,7 @@ namespace
         ID_BUILD_ALL,
         ID_BUILD_PATCH,
         ID_VERIFY,
+        ID_FOLDER_PATCH,
         ID_CANCEL,
         ID_HINT,
         ID_SINGLE,
@@ -241,7 +242,7 @@ namespace
     void SetBusy(bool busy)
     {
         g_busy = busy;
-        for (int id : {ID_SINGLE, ID_REFRESH, ID_IMPORT, ID_BUILD_CHANGED, ID_BUILD_ALL, ID_BUILD_PATCH, ID_VERIFY, ID_CONTENT_BROWSE, ID_GAME_BROWSE, ID_DLC_BROWSE,
+        for (int id : {ID_SINGLE, ID_REFRESH, ID_IMPORT, ID_BUILD_CHANGED, ID_BUILD_ALL, ID_BUILD_PATCH, ID_FOLDER_PATCH, ID_VERIFY, ID_CONTENT_BROWSE, ID_GAME_BROWSE, ID_DLC_BROWSE,
                        ID_KEY_BROWSE})
             EnableWindow(GetDlgItem(g_window, id), !busy);
         for (const Field& field : FIELDS)
@@ -436,6 +437,39 @@ namespace
             RunJob(L"Импорт из игры", [](const Settings& s, Reporter& r) { Import(s, r); });
     }
 
+    // Any folder -> its own small package, independent of the content folder
+    void OnFolderPatch()
+    {
+        IFileOpenDialog* dialog = nullptr;
+        if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))))
+            return;
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PICKFOLDERS);
+        dialog->SetTitle(L"Папка патча (внутри: resources\\<ресурс>\\models\\..., data\\..., *.img\\...)");
+
+        std::wstring folder;
+        if (SUCCEEDED(dialog->Show(g_window)))
+        {
+            IShellItem* result = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&result)))
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(result->GetDisplayName(SIGDN_FILESYSPATH, &path)))
+                {
+                    folder = path;
+                    CoTaskMemFree(path);
+                }
+                result->Release();
+            }
+        }
+        dialog->Release();
+
+        if (!folder.empty())
+            RunJob(L"Патч из папки " + folder, [folder](const Settings& s, Reporter& r) { BuildFolderPatch(s, folder, r); });
+    }
+
     void OnCommand(int id)
     {
         switch (id)
@@ -459,6 +493,10 @@ namespace
 
             case ID_BUILD_PATCH:
                 RunJob(L"Сборка патча", [](const Settings& s, Reporter& r) { Build(s, BuildMode::Patch, r); });
+                break;
+
+            case ID_FOLDER_PATCH:
+                OnFolderPatch();
                 break;
 
             case ID_VERIFY:
@@ -516,6 +554,7 @@ namespace
         Create(L"BUTTON", L"Собрать патч", WS_TABSTOP | BS_PUSHBUTTON, ID_BUILD_PATCH);
         Create(L"BUTTON", L"Пересобрать всё", WS_TABSTOP | BS_PUSHBUTTON, ID_BUILD_ALL);
         Create(L"BUTTON", L"Проверить пакеты", WS_TABSTOP | BS_PUSHBUTTON, ID_VERIFY);
+        Create(L"BUTTON", L"Патч из папки…", WS_TABSTOP | BS_PUSHBUTTON, ID_FOLDER_PATCH);
         Create(L"BUTTON", L"Отмена", WS_TABSTOP | BS_PUSHBUTTON, ID_CANCEL);
 
         Create(L"STATIC",
@@ -582,9 +621,9 @@ namespace
 
         move(ID_SINGLE, margin + labelWidth, y, width - labelWidth, row);
         y += row + gap;
-        const int buttons[] = {ID_REFRESH, ID_IMPORT, ID_BUILD_CHANGED, ID_BUILD_PATCH, ID_BUILD_ALL, ID_VERIFY, ID_CANCEL};
-        const int extra[] = {0, 0, Scale(16), 0, Scale(16), Scale(16), Scale(16)};
-        const int count = 7;
+        const int buttons[] = {ID_REFRESH, ID_IMPORT, ID_BUILD_CHANGED, ID_BUILD_PATCH, ID_BUILD_ALL, ID_FOLDER_PATCH, ID_VERIFY, ID_CANCEL};
+        const int extra[] = {0, 0, Scale(16), 0, 0, Scale(16), Scale(16), Scale(16)};
+        const int count = 8;
         const int buttonWidth = std::min(Scale(150), (width - Scale(64) - gap * (count - 1)) / count);
         const int buttonHeight = Scale(30);
         int       x = margin;

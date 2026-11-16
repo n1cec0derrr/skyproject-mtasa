@@ -107,6 +107,10 @@ namespace sky
     void       Import(const Settings& settings, Reporter& reporter);
     void       VerifyAll(const Settings& settings, Reporter& reporter);
 
+    // Packs one folder into its own package zz_<folder name>.skydlc, whatever the content folder holds.
+    // The folder mirrors the game folder: resources\<resource>\models\car.dff, data\..., models\x.img\ ...
+    void BuildFolderPatch(const Settings& settings, const fs::path& folder, Reporter& reporter);
+
     // .img files found in the game folder (relative paths), for the import prompt
     std::vector<std::pair<fs::path, uint64_t>> FindGameImages(const fs::path& game);
 }

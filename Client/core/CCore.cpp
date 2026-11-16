@@ -2251,6 +2251,12 @@ void CCore::CalculateStreamingMemoryRange()
     float   fSizeScale = UnlerpClamped(1024, uiFileSizeMB, 2048);
     fMaxAmount += fMaxAmount * fSizeScale;
 
+    // Sky Project: the map and vehicles come from .skydlc packages, gta3.img is not on disk to scale by.
+    // Our map needs about 650 MB (the old Sky client had 652, nrp_memory_sa asks for 650); with 256 the game
+    // kept unloading and reloading the map around the player.
+    if (HasSkyDLCPackages(GetMTASABaseDir()))
+        fMaxAmount = std::max(fMaxAmount, 650.f);
+
     // Apply cap dependant on video memory
     fMaxAmount = std::min(fMaxAmount, iVideoMemoryMB * 2.f);
     fMinAmount = std::min(fMinAmount, iVideoMemoryMB * 1.f);
