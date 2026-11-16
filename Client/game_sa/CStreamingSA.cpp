@@ -18,11 +18,8 @@
 
 extern CCoreInterface* g_pCore;
 
-// count: 26316 in unmodified game.
-// Sky Project: the address is read from the game code (0x8E4CC0 in an unmodified game), like
-// CModelInfoSA.h does. The fastman92 limit adjuster moves this array to a bigger one; with the fixed
-// address every GetStreamingInfo() read and wrote the old array past its end and corrupted memory.
-CStreamingInfo (&CStreamingSA::ms_aInfoForModel)[26316] = *(CStreamingInfo(*)[26316]) * (CStreamingInfo**)(0x5B8B08 + 6);
+// count: 26316 in unmodified game
+CStreamingInfo (&CStreamingSA::ms_aInfoForModel)[26316] = *(CStreamingInfo(*)[26316])0x8E4CC0;
 HANDLE* phStreamingThread = (HANDLE*)0x8E4008;
 uint32(&CStreamingSA::ms_streamingHalfOfBufferSizeBlocks) = *(uint32*)0x8E4CA8;
 void* (&CStreamingSA::ms_pStreamingBuffer)[2] = *(void* (*)[2])0x8E4CAC;
@@ -337,9 +334,12 @@ void CStreamingSA::SetStreamingInfo(uint modelid, unsigned char usStreamID, uint
 {
     CStreamingInfo* pItemInfo = GetStreamingInfo(modelid);
 
-    // Change nextInImg field for prev model
-    for (CStreamingInfo& info : ms_aInfoForModel)
+    // Change nextInImg field for prev model.
+    // Sky Project: over the array the game really uses, the limit adjuster may have moved and enlarged it
+    const uint count = static_cast<uint>((*(char**)(0x5B8AFA + 2) - *(char**)(0x5B8B08 + 6)) / sizeof(CStreamingInfo));  // as GetCountOfAllFileIDs
+    for (uint i = 0; i < count; i++)
     {
+        CStreamingInfo& info = *GetStreamingInfo(i);
         if (info.archiveId == pItemInfo->archiveId)
         {
             // Check if the block after `info` is the beginning of `pItemInfo`'s block
@@ -359,7 +359,11 @@ void CStreamingSA::SetStreamingInfo(uint modelid, unsigned char usStreamID, uint
 
 CStreamingInfo* CStreamingSA::GetStreamingInfo(uint modelid)
 {
-    return &ms_aInfoForModel[modelid];
+    // Sky Project: the array address is read from the game code on every call (0x8E4CC0 in an unmodified
+    // game, the same reference GetCountOfAllFileIDs uses). The fastman92 limit adjuster moves the array
+    // to a bigger one on the heap; the fixed address read and wrote the old array past its end.
+    CStreamingInfo* const infos = *reinterpret_cast<CStreamingInfo**>(0x5B8B08 + 6);
+    return &infos[modelid];
 }
 
 unsigned char CStreamingSA::GetUnusedArchive()
