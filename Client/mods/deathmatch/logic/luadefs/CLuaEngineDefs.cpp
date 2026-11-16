@@ -331,11 +331,16 @@ int CLuaEngineDefs::EngineLoadCOL(lua_State* luaVM)
                     return 1;
                 }
 
-                SString filePath;
+                SString     filePath;
+                std::string metaPath;
 
                 // Is this a legal filepath?
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
                 {
+                    // Sky Project: a file of this resource packed into a .skydlc (resources/<resource>/<path>) wins over the file on disk
+                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
+                        bIsRawData = true;
+
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceCOLModelRoot();
 
@@ -404,10 +409,15 @@ int CLuaEngineDefs::EngineLoadDFF(lua_State* luaVM)
                     return 1;
                 }
 
-                SString filePath;
+                SString     filePath;
+                std::string metaPath;
 
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
                 {
+                    // Sky Project: a file of this resource packed into a .skydlc (resources/<resource>/<path>) wins over the file on disk
+                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
+                        bIsRawData = true;
+
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceDFFRoot();
 
@@ -478,10 +488,15 @@ int CLuaEngineDefs::EngineLoadTXD(lua_State* luaVM)
                     return 1;
                 }
 
-                SString filePath;
+                SString     filePath;
+                std::string metaPath;
 
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
                 {
+                    // Sky Project: a file of this resource packed into a .skydlc (resources/<resource>/<path>) wins over the file on disk
+                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
+                        bIsRawData = true;
+
                     // Grab the resource root entity
                     CClientEntity* pRoot = pResource->GetResourceTXDRoot();
 
@@ -551,11 +566,16 @@ int CLuaEngineDefs::EngineLoadIFP(lua_State* luaVM)
                     return 1;
                 }
 
-                SString filePath;
+                SString     filePath;
+                std::string metaPath;
 
                 // Is this a legal filepath?
-                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
+                if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath, &metaPath))
                 {
+                    // Sky Project: a file of this resource packed into a .skydlc (resources/<resource>/<path>) wins over the file on disk
+                    if (!bIsRawData && ReadSkyDLCResourceFile(pResource, metaPath, input))
+                        bIsRawData = true;
+
                     std::shared_ptr<CClientIFP> pIFP =
                         CIFPEngine::LoadIFP(pResource, m_pManager, std::move(blockName), bIsRawData, bIsRawData ? std::move(input) : std::move(filePath));
 

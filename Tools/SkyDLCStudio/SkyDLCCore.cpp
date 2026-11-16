@@ -2311,6 +2311,18 @@ namespace sky
                 switched = true;
         }
 
+        // A package with a studio name that this content folder did not build (another content folder, a
+        // deleted state file, a package copied in by hand) is never overwritten: it may hold the whole map.
+        {
+            const std::wstring name = settings.single ? SINGLE_PACKAGE : FILES_PACKAGE;
+            if (fs::exists(settings.dlc / name) && !before.count(LowerW(name)))
+                Fail(L"в папке dlc уже лежит " + name + L", но собран он не из этой папки контента. "
+                     L"Сборка заменила бы его тем, что есть в контенте сейчас (" + std::to_wstring(content.archives.size()) + L" архивов, " +
+                     std::to_wstring(content.files.size()) + L" файлов), и всё остальное из него пропало бы. "
+                     L"Проверьте папку контента и папку dlc; если пакет действительно не нужен, удалите или переместите его вручную. "
+                     L"Чтобы добавить что-то поверх, используйте «Патч из папки».");
+        }
+
         if (switched && mode != BuildMode::All)
         {
             reporter.Log(settings.single ? L"Раскладка сменилась на один общий файл — собирается всё" : L"Раскладка сменилась на пакет на архив — собирается всё");
@@ -2398,6 +2410,57 @@ namespace sky
         }
         reporter.Log(L"Файлов данных скопировано: " + std::to_wstring(copied) + L" (уже существующие не перезаписываются)");
         reporter.Log(L"Импорт завершён");
+    }
+
+    void BuildFolderPatch(const Settings& settings, const fs::path& folder, Reporter& reporter)
+    {
+        const Key master = LoadMasterKey(settings.key);
+        reporter.Log(L"Отпечаток ключа: " + KeyFingerprint(master));
+
+        Content content = ReadContent(folder);
+
+        for (const Archive& archive : content.archives)
+            for (const std::wstring& problem : archive.problems)
+                Fail(Native(archive.id) + L": " + problem);
+
+        if (content.archives.empty() && content.files.empty())
+            Fail(L"в папке нет файлов: " + folder.wstring());
+
+        // A model outside an archive and outside resources\ is never opened by the game
+        for (const Item& item : content.files)
+        {
+            const std::string  lower = Lower(item.name);
+            const std::wstring extension = LowerW(item.path.extension().wstring());
+            const bool         model = extension == L".dff" || extension == L".txd" || extension == L".col" || extension == L".ifp";
+            if (model && lower.rfind("resources/", 0) != 0)
+                Fail(L"«" + Native(item.name) + L"» игра не найдёт: модель должна лежать по тому пути, по которому её грузят. "
+                     L"Для машины из ресурса это resources\\<имя ресурса>\\<путь из скрипта>, например resources\\sky_carshop\\models\\" +
+                     item.path.filename().wstring() + L". Для замены модели игры — в папке архива, например data\\Paths\\skyproject_vehs.img\\");
+        }
+
+        std::wstring name = LowerW(folder.filename().wstring());
+        for (wchar_t& c : name)
+            if (!(iswalnum(c) || c == L'_' || c == L'-'))
+                c = L'_';
+        if (name.empty())
+            name = L"patch";
+
+        const std::wstring package = L"zz_" + name + L".skydlc";
+        if (LowerW(package) == LowerW(PATCH_PACKAGE))
+            Fail(L"имя zz_patch занято патчем студии, переименуйте папку");
+
+        std::vector<ImgPart> imgs;
+        for (Archive& archive : content.archives)
+            imgs.push_back({archive.id, &archive.items});
+
+        fs::create_directories(settings.dlc);
+        BuildMixedPackage(settings.dlc / package, TYPE_OTHER, imgs, content.files, master, reporter);
+
+        for (const Archive& archive : content.archives)
+            reporter.Log(L"  " + Native(archive.id) + L" (" + std::to_wstring(archive.items.size()) + L" файлов)");
+        for (const Item& item : content.files)
+            reporter.Log(L"  " + Native(item.name));
+        reporter.Log(L"Патч " + package + L" лежит в папке dlc и перекрывает такие же файлы из остальных пакетов. Чтобы убрать, удалите файл.");
     }
 
     void VerifyAll(const Settings& settings, Reporter& reporter)
