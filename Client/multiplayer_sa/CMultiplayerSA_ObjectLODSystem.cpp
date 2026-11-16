@@ -67,19 +67,6 @@ int OnMY_CRenderer_SetupEntityVisibility_Pre(CEntitySAInterface* pEntity, float&
         return 0xFF;  // Skip: caller's switch-default ignores the entity
     }
 
-    // Sky Project: a map building from another interior (the interior field in the IPL) is never drawn.
-    // The game skips this check on one of its paths, and then interiors of the Sky map
-    // (ofis1/ofis2 in chernihiv_bulding.ipl, interior 10) hang over the street without collision.
-    if (pEntity->nType == ENTITY_TYPE_BUILDING)
-    {
-        const DWORD currentArea = *reinterpret_cast<DWORD*>(0xB72914);  // CGame::currArea
-        if (pEntity->m_areaCode != currentArea && pEntity->m_areaCode != 13)
-        {
-            saved.bValid = false;
-            return 0;  // invisible
-        }
-    }
-
     if (pEntity->IsLowLodEntity())
     {
         SetGlobalDrawDistanceScale(LOW_LOD_DRAW_DISTANCE_SCALE * 2);
