@@ -899,6 +899,58 @@ namespace sky
             return content;
         }
 
+        // MTA resources in a folder patch (a folder with meta.xml, e.g. copied from the server) go to
+        // resources/<resource name>/<path inside the resource>: that is where the client looks for the models
+        // the resource loads (engineLoadDFF('car.dff') in resource alfa -> resources/alfa/car.dff).
+        // Scripts and meta.xml are left out: the server sends them. Returns how many files were mapped.
+        size_t MapResourceFolders(const fs::path& root, std::vector<Item>& files, size_t& skippedScripts)
+        {
+            std::vector<Item> kept;
+            size_t            mapped = 0;
+            skippedScripts = 0;
+            for (Item& item : files)
+            {
+                if (Lower(item.name).rfind("resources/", 0) == 0)
+                {
+                    kept.push_back(std::move(item));
+                    continue;
+                }
+
+                // The nearest folder with meta.xml, up to the patch folder itself
+                fs::path        resourceDir;
+                std::error_code ec;
+                for (fs::path dir = item.path.parent_path();; dir = dir.parent_path())
+                {
+                    if (fs::is_regular_file(dir / L"meta.xml", ec))
+                    {
+                        resourceDir = dir;
+                        break;
+                    }
+                    if (dir == root || !dir.has_parent_path() || dir.parent_path() == dir)
+                        break;
+                }
+                if (resourceDir.empty())
+                {
+                    kept.push_back(std::move(item));
+                    continue;
+                }
+
+                const std::wstring extension = LowerW(item.path.extension().wstring());
+                if (extension == L".lua" || extension == L".luac" || LowerW(item.path.filename().wstring()) == L"meta.xml")
+                {
+                    skippedScripts++;
+                    continue;
+                }
+
+                item.name = "resources/" + Narrow(resourceDir.filename().wstring()) + "/" + Generic(item.path.lexically_relative(resourceDir));
+                kept.push_back(std::move(item));
+                mapped++;
+            }
+            std::sort(kept.begin(), kept.end(), [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); });
+            files = std::move(kept);
+            return mapped;
+        }
+
         // ------------------------------------------------------------ what was built last time
 
         struct FileRecord
@@ -2431,6 +2483,12 @@ namespace sky
         reporter.Log(L"Отпечаток ключа: " + KeyFingerprint(master));
 
         Content content = ReadContent(folder);
+
+        size_t       skippedScripts = 0;
+        const size_t resourceFiles = MapResourceFolders(folder, content.files, skippedScripts);
+        if (resourceFiles || skippedScripts)
+            reporter.Log(L"Ресурсы MTA (папки с meta.xml): файлов в resources\\ — " + std::to_wstring(resourceFiles) +
+                         L", скриптов и meta.xml пропущено — " + std::to_wstring(skippedScripts) + L" (их отдаёт сервер)");
 
         for (const Archive& archive : content.archives)
             for (const std::wstring& problem : archive.problems)
