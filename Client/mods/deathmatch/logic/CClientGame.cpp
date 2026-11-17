@@ -6844,12 +6844,21 @@ void CClientGame::FreeMapMemory(bool emergency)
     if (available != 0)
         g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
 
-    if (emergency || GetFreeAddressSpace() < HARD_FREE_LEFT)
-    {
-        g_pGame->GetStreaming()->RemoveBigBuildings();
-        g_pGame->GetStreaming()->ReinitStreaming();
-        m_lastEmergencyMapFlush = GetTickCount64_();
-    }
+    // What the game frees goes back to the heap of the process, not to the free address space: after a full
+    // cleanup the free space hardly grows, though the memory is used again. So the next full cleanup comes only
+    // when the free space has gone down further since the last one, otherwise the map would blink for nothing.
+    const uint64_t freeLeft = GetFreeAddressSpace();
+    if (!emergency && freeLeft >= HARD_FREE_LEFT)
+        return;
+    if (m_freeAtLastMapFlush != 0 && freeLeft + 64ull * 1024 * 1024 > m_freeAtLastMapFlush)
+        return;
+
+    WriteDebugEvent(SString("Sky: address space free %u MB, full map memory cleanup%s", static_cast<unsigned>(freeLeft / 1048576),
+                            emergency ? " (emergency)" : ""));
+    g_pGame->GetStreaming()->RemoveBigBuildings();
+    g_pGame->GetStreaming()->ReinitStreaming();
+    m_lastEmergencyMapFlush = GetTickCount64_();
+    m_freeAtLastMapFlush = freeLeft;
 }
 
 // Sky Project: who takes the address space, once in the log (the biggest allocations by owner)
@@ -6940,10 +6949,7 @@ void CClientGame::CheckAddressSpace()
         return;
 
     if (freeLeft < EMERGENCY_FREE_LEFT)
-    {
-        WriteDebugEvent(SString("Sky: address space free %u MB, emergency map memory cleanup", static_cast<unsigned>(freeLeft / 1048576)));
         FreeMapMemory(true);
-    }
 }
 
 void CClientGame::ReinitMarkers()

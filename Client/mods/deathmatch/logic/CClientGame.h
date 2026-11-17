@@ -472,6 +472,7 @@ public:
     void            FreeMapMemory(bool emergency);
     void            CheckAddressSpace();
     uint64_t        m_lastEmergencyMapFlush = 0;
+    uint64_t        m_freeAtLastMapFlush = 0;
     void ReinitMarkers();
 
     void OnWindowFocusChange(bool state);
