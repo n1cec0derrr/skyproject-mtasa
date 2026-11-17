@@ -62,6 +62,49 @@ static void _declspec(naked) HOOK_CDamageManager__ProgressDoorDamage()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
+// CAutomobile::GetTowHitchPos
+//
+// Sky Project: the game decides who can tow a trailer by the model ID (403, 514, 515, 591, the tow
+// truck, the tractor). A model from engineRequestModel has its own ID, so a custom truck on a
+// Roadtrain base never hitched. For the time of the call the vehicle gets the ID of its base model.
+//
+// The function itself (0x6AF250) is patched by the limit adjuster, so its code is not touched:
+// the entries of the virtual tables that point at it are replaced by a wrapper that calls
+// whatever was there.
+//
+//////////////////////////////////////////////////////////////////////////////////////////
+namespace
+{
+    // CAutomobile and the classes that inherit its GetTowHitchPos
+    const DWORD towHitchVtableSlots[] = {0x871210, 0x871770, 0x8718C8, 0x871A38, 0x871BD8};
+
+    using GetTowHitchPos_t = bool(__thiscall*)(CVehicleSAInterface*, CVector*, bool, void*);
+    GetTowHitchPos_t originalGetTowHitchPos = nullptr;
+
+    bool __fastcall GetTowHitchPos_Wrapper(CVehicleSAInterface* vehicle, void*, CVector* position, bool checkModelInfo, void* other)
+    {
+        const unsigned short model = vehicle->m_nModelIndex;
+        unsigned short       parent = 0;
+
+        if (CModelInfo* modelInfo = pGameInterface->GetModelInfo(model, true))
+        {
+            const unsigned int id = modelInfo->GetParentID();
+            if (id != 0 && id < 65535)
+                parent = static_cast<unsigned short>(id);
+        }
+
+        if (!parent)
+            return originalGetTowHitchPos(vehicle, position, checkModelInfo, other);
+
+        vehicle->m_nModelIndex = parent;
+        const bool result = originalGetTowHitchPos(vehicle, position, checkModelInfo, other);
+        vehicle->m_nModelIndex = model;
+        return result;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
 // CMultiplayerSA::InitHooks_Vehicles
 //
 // Setup hooks
@@ -70,4 +113,16 @@ static void _declspec(naked) HOOK_CDamageManager__ProgressDoorDamage()
 void CMultiplayerSA::InitHooks_Vehicles()
 {
     EZHookInstall(CDamageManager__ProgressDoorDamage);
+
+    // Custom truck models hitch trailers like their base model
+    originalGetTowHitchPos = *reinterpret_cast<GetTowHitchPos_t*>(towHitchVtableSlots[0]);
+    int replaced = 0;
+    for (DWORD slot : towHitchVtableSlots)
+    {
+        if (*reinterpret_cast<GetTowHitchPos_t*>(slot) != originalGetTowHitchPos)
+            continue;  // something else is there: leave it
+        MemPut<DWORD>(slot, reinterpret_cast<DWORD>(&GetTowHitchPos_Wrapper));
+        replaced++;
+    }
+    WriteDebugEvent(SString("Sky: tow hitch wrapper in %d vtables, original %08X", replaced, reinterpret_cast<DWORD>(originalGetTowHitchPos)));
 }

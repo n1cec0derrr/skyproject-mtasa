@@ -30,6 +30,16 @@
 #include <ServerBrowser/CServerCache.h>
 #include "CDiscordRichPresence.h"
 #include "CSteamClient.h"
+
+// Sky Project: streaming memory with .skydlc packages, MB (see CalculateStreamingMemoryRange)
+static constexpr float SKY_STREAMING_MEMORY_MB = 512.f;
+
+// Sky Project: the client runs from .skydlc packages; checked once, the packages do not change while it runs
+static bool IsSkyDLCClient()
+{
+    static const bool result = HasSkyDLCPackages(GetMTASABaseDir());
+    return result;
+}
 #include "CCrashDumpWriter.h"
 #include "FastFailCrashHandler/WerCrashHandler.h"
 
@@ -2252,10 +2262,11 @@ void CCore::CalculateStreamingMemoryRange()
     fMaxAmount += fMaxAmount * fSizeScale;
 
     // Sky Project: the map and vehicles come from .skydlc packages, gta3.img is not on disk to scale by.
-    // Our map needs about 650 MB (the old Sky client had 652, nrp_memory_sa asks for 650); with 256 the game
-    // kept unloading and reloading the map around the player.
-    if (HasSkyDLCPackages(GetMTASABaseDir()))
-        fMaxAmount = std::max(fMaxAmount, 650.f);
+    // 512 MB exactly: with 256 the game kept unloading and reloading the map around the player, with 650 the
+    // 32-bit process ran out of its 4 GB while flying (the map takes more than the streaming memory counts,
+    // and right after joining the process already uses about 3.3 GB).
+    if (IsSkyDLCClient())
+        fMaxAmount = SKY_STREAMING_MEMORY_MB;
 
     // Apply cap dependant on video memory
     fMaxAmount = std::min(fMaxAmount, iVideoMemoryMB * 2.f);
@@ -2623,10 +2634,15 @@ bool CCore::IsUsingCustomStreamingMemorySize()
 }
 
 // Streaming memory size used [In Bytes]
+// Sky Project: with DLC packages never above the maximum (512 MB), whatever an old coreconfig.xml or a
+// script (engineStreamingSetMemorySize) asks for: more runs the process out of memory.
 size_t CCore::GetStreamingMemory()
 {
-    return IsUsingCustomStreamingMemorySize() ? m_CustomStreamingMemoryLimitBytes
-                                              : CVARS_GET_VALUE<size_t>("streaming_memory") * 1024 * 1024;  // MB to B conversion
+    const size_t size = IsUsingCustomStreamingMemorySize() ? m_CustomStreamingMemoryLimitBytes
+                                                           : CVARS_GET_VALUE<size_t>("streaming_memory") * 1024 * 1024;  // MB to B conversion
+    if (IsSkyDLCClient())
+        return std::min<size_t>(size, static_cast<size_t>(SKY_STREAMING_MEMORY_MB) * 1024 * 1024);
+    return size;
 }
 
 // Discord rich presence

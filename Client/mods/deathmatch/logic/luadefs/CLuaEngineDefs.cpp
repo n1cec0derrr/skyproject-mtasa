@@ -76,6 +76,8 @@ size_t EngineStreamingGetMemorySize() {
 size_t EngineStreamingGetMaxMemory() {
     uint sizeMB = 0;
     g_pCore->GetCVars()->Get("streaming_memory", sizeMB);
+    // never above what the client allows (512 MB with Sky DLC packages), so nrp_memory_sa cleans below it
+    sizeMB = std::min(sizeMB, g_pCore->GetMaxStreamingMemory());
     return static_cast<size_t>(sizeMB) * 1024 * 1024;
 }
 
@@ -93,11 +95,10 @@ bool EngineRestreamModel(std::uint32_t modelId) {
 // and the whole map vanished and loaded again. Now the game's own cleanup runs, the one it uses when
 // memory is full: models not drawn for the longest time go first, then the ones behind the camera.
 // What is on screen stays. Frees down to 60% of the streaming memory.
+// When less than 300 MB of address space is left the whole map is unloaded and loaded again, as before:
+// the gentle cleanup alone let the process run out of memory while flying.
 bool EngineRestreamMap() {
-    const std::uint32_t available = static_cast<std::uint32_t>(g_pCore->GetStreamingMemory());
-    if (available == 0)
-        return false;
-    g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
+    g_pClientGame->FreeMapMemory(false);
     return true;
 }
 
