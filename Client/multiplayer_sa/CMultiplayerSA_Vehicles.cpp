@@ -66,46 +66,41 @@ static void _declspec(naked) HOOK_CDamageManager__ProgressDoorDamage()
 //
 // Sky Project: the game decides who can tow a trailer by the model ID (403, 514, 515, 591, the tow
 // truck, the tractor). A model from engineRequestModel has its own ID, so a custom truck on a
-// Roadtrain base never hitched. The check now sees the base model of such a model.
+// Roadtrain base never hitched. For the time of the call the vehicle gets the ID of its base model.
+//
+// The function itself (0x6AF250) is patched by the limit adjuster, so its code is not touched:
+// the entries of the virtual tables that point at it are replaced by a wrapper that calls
+// whatever was there.
 //
 //////////////////////////////////////////////////////////////////////////////////////////
-// >>> 0x6AF250 | 66 8B 41 22 | mov     ax, [ecx+22h]      (m_nModelIndex)
-//     0x6AF254 | 83 EC 0C    | sub     esp, 0Ch
-//     0x6AF257 | 66 3D 0D 02 | cmp     ax, 20Dh
-#define HOOKPOS_CAutomobile__GetTowHitchPos  0x6AF250
-#define HOOKSIZE_CAutomobile__GetTowHitchPos 7
-static DWORD CONTINUE_CAutomobile__GetTowHitchPos = 0x6AF257;
-static DWORD towHitchModel = 0;
-
-static DWORD __cdecl GetTowHitchModel(CVehicleSAInterface* vehicle)
+namespace
 {
-    const DWORD model = vehicle->m_nModelIndex;
-    CModelInfo* modelInfo = pGameInterface->GetModelInfo(model, true);
-    if (modelInfo)
-    {
-        const unsigned int parent = modelInfo->GetParentID();
-        if (parent != 0 && parent < 65535)
-            return parent;
-    }
-    return model;
-}
+    // CAutomobile and the classes that inherit its GetTowHitchPos
+    const DWORD towHitchVtableSlots[] = {0x871210, 0x871770, 0x8718C8, 0x871A38, 0x871BD8};
 
-static void _declspec(naked) HOOK_CAutomobile__GetTowHitchPos()
-{
-    // clang-format off
-    __asm
+    using GetTowHitchPos_t = bool(__thiscall*)(CVehicleSAInterface*, CVector*, bool, void*);
+    GetTowHitchPos_t originalGetTowHitchPos = nullptr;
+
+    bool __fastcall GetTowHitchPos_Wrapper(CVehicleSAInterface* vehicle, void*, CVector* position, bool checkModelInfo, void* other)
     {
-        pushad
-        push    ecx
-        call    GetTowHitchModel
-        add     esp, 4
-        mov     towHitchModel, eax
-        popad
-        mov     ax, word ptr towHitchModel
-        sub     esp, 0Ch
-        jmp     CONTINUE_CAutomobile__GetTowHitchPos
+        const unsigned short model = vehicle->m_nModelIndex;
+        unsigned short       parent = 0;
+
+        if (CModelInfo* modelInfo = pGameInterface->GetModelInfo(model, true))
+        {
+            const unsigned int id = modelInfo->GetParentID();
+            if (id != 0 && id < 65535)
+                parent = static_cast<unsigned short>(id);
+        }
+
+        if (!parent)
+            return originalGetTowHitchPos(vehicle, position, checkModelInfo, other);
+
+        vehicle->m_nModelIndex = parent;
+        const bool result = originalGetTowHitchPos(vehicle, position, checkModelInfo, other);
+        vehicle->m_nModelIndex = model;
+        return result;
     }
-    // clang-format on
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -119,14 +114,15 @@ void CMultiplayerSA::InitHooks_Vehicles()
 {
     EZHookInstall(CDamageManager__ProgressDoorDamage);
 
-    // Only over the original code: a limit adjuster may have patched it
-    static const BYTE original[] = {0x66, 0x8B, 0x41, 0x22, 0x83, 0xEC, 0x0C};
-    if (memcmp(reinterpret_cast<const void*>(HOOKPOS_CAutomobile__GetTowHitchPos), original, sizeof(original)) == 0)
+    // Custom truck models hitch trailers like their base model
+    originalGetTowHitchPos = *reinterpret_cast<GetTowHitchPos_t*>(towHitchVtableSlots[0]);
+    int replaced = 0;
+    for (DWORD slot : towHitchVtableSlots)
     {
-        EZHookInstall(CAutomobile__GetTowHitchPos);
+        if (*reinterpret_cast<GetTowHitchPos_t*>(slot) != originalGetTowHitchPos)
+            continue;  // something else is there: leave it
+        MemPut<DWORD>(slot, reinterpret_cast<DWORD>(&GetTowHitchPos_Wrapper));
+        replaced++;
     }
-    else
-    {
-        WriteDebugEvent("Sky: tow hitch hook skipped, the code at 0x6AF250 is patched");
-    }
+    WriteDebugEvent(SString("Sky: tow hitch wrapper in %d vtables, original %08X", replaced, reinterpret_cast<DWORD>(originalGetTowHitchPos)));
 }
