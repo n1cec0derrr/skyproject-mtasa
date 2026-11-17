@@ -62,6 +62,54 @@ static void _declspec(naked) HOOK_CDamageManager__ProgressDoorDamage()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
+// CAutomobile::GetTowHitchPos
+//
+// Sky Project: the game decides who can tow a trailer by the model ID (403, 514, 515, 591, the tow
+// truck, the tractor). A model from engineRequestModel has its own ID, so a custom truck on a
+// Roadtrain base never hitched. The check now sees the base model of such a model.
+//
+//////////////////////////////////////////////////////////////////////////////////////////
+// >>> 0x6AF250 | 66 8B 41 22 | mov     ax, [ecx+22h]      (m_nModelIndex)
+//     0x6AF254 | 83 EC 0C    | sub     esp, 0Ch
+//     0x6AF257 | 66 3D 0D 02 | cmp     ax, 20Dh
+#define HOOKPOS_CAutomobile__GetTowHitchPos  0x6AF250
+#define HOOKSIZE_CAutomobile__GetTowHitchPos 7
+static DWORD CONTINUE_CAutomobile__GetTowHitchPos = 0x6AF257;
+static DWORD towHitchModel = 0;
+
+static DWORD __cdecl GetTowHitchModel(CVehicleSAInterface* vehicle)
+{
+    const DWORD model = vehicle->m_nModelIndex;
+    CModelInfo* modelInfo = pGameInterface->GetModelInfo(model, true);
+    if (modelInfo)
+    {
+        const unsigned int parent = modelInfo->GetParentID();
+        if (parent != 0 && parent < 65535)
+            return parent;
+    }
+    return model;
+}
+
+static void _declspec(naked) HOOK_CAutomobile__GetTowHitchPos()
+{
+    // clang-format off
+    __asm
+    {
+        pushad
+        push    ecx
+        call    GetTowHitchModel
+        add     esp, 4
+        mov     towHitchModel, eax
+        popad
+        mov     ax, word ptr towHitchModel
+        sub     esp, 0Ch
+        jmp     CONTINUE_CAutomobile__GetTowHitchPos
+    }
+    // clang-format on
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
 // CMultiplayerSA::InitHooks_Vehicles
 //
 // Setup hooks
@@ -70,4 +118,15 @@ static void _declspec(naked) HOOK_CDamageManager__ProgressDoorDamage()
 void CMultiplayerSA::InitHooks_Vehicles()
 {
     EZHookInstall(CDamageManager__ProgressDoorDamage);
+
+    // Only over the original code: a limit adjuster may have patched it
+    static const BYTE original[] = {0x66, 0x8B, 0x41, 0x22, 0x83, 0xEC, 0x0C};
+    if (memcmp(reinterpret_cast<const void*>(HOOKPOS_CAutomobile__GetTowHitchPos), original, sizeof(original)) == 0)
+    {
+        EZHookInstall(CAutomobile__GetTowHitchPos);
+    }
+    else
+    {
+        WriteDebugEvent("Sky: tow hitch hook skipped, the code at 0x6AF250 is patched");
+    }
 }
