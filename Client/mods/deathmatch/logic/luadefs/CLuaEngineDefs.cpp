@@ -76,6 +76,8 @@ size_t EngineStreamingGetMemorySize() {
 size_t EngineStreamingGetMaxMemory() {
     uint sizeMB = 0;
     g_pCore->GetCVars()->Get("streaming_memory", sizeMB);
+    // never above what the client allows (512 MB with Sky DLC packages), so nrp_memory_sa cleans below it
+    sizeMB = std::min(sizeMB, g_pCore->GetMaxStreamingMemory());
     return static_cast<size_t>(sizeMB) * 1024 * 1024;
 }
 
