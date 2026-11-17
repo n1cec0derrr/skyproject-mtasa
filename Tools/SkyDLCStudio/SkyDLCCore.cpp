@@ -899,6 +899,110 @@ namespace sky
             return content;
         }
 
+        // MTA resources in a folder patch (a folder with meta.xml, e.g. copied from the server) go to
+        // resources/<resource name>/<path inside the resource>: that is where the client looks for the models
+        // the resource loads (engineLoadDFF('car.dff') in resource alfa -> resources/alfa/car.dff).
+        // Scripts and meta.xml are left out: the server sends them. Returns how many files were mapped.
+        size_t MapResourceFolders(const fs::path& root, std::vector<Item>& files, size_t& skippedScripts)
+        {
+            std::vector<Item> kept;
+            size_t            mapped = 0;
+            skippedScripts = 0;
+            for (Item& item : files)
+            {
+                if (Lower(item.name).rfind("resources/", 0) == 0)
+                {
+                    kept.push_back(std::move(item));
+                    continue;
+                }
+
+                // The nearest folder with meta.xml, up to the patch folder itself
+                fs::path        resourceDir;
+                std::error_code ec;
+                for (fs::path dir = item.path.parent_path();; dir = dir.parent_path())
+                {
+                    if (fs::is_regular_file(dir / L"meta.xml", ec))
+                    {
+                        resourceDir = dir;
+                        break;
+                    }
+                    if (dir == root || !dir.has_parent_path() || dir.parent_path() == dir)
+                        break;
+                }
+                if (resourceDir.empty())
+                {
+                    kept.push_back(std::move(item));
+                    continue;
+                }
+
+                const std::wstring extension = LowerW(item.path.extension().wstring());
+                if (extension == L".lua" || extension == L".luac" || LowerW(item.path.filename().wstring()) == L"meta.xml")
+                {
+                    skippedScripts++;
+                    continue;
+                }
+
+                item.name = "resources/" + Narrow(resourceDir.filename().wstring()) + "/" + Generic(item.path.lexically_relative(resourceDir));
+                kept.push_back(std::move(item));
+                mapped++;
+            }
+            std::sort(kept.begin(), kept.end(), [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); });
+            files = std::move(kept);
+            return mapped;
+        }
+
+        // Simple model folders in a folder patch: models named after what they replace, no resource paths.
+        //   <folder>/intruder.dff, intruder.txd    -> archive models/zz_<folder>.img inside the patch: replaces the
+        //                                            game model (546). The client puts the archive into gta.dat
+        //                                            before the others, so it wins over the main package.
+        //   <folder>/skins/bee.dff (or скины/)      -> resources/sky_skins/models/bee.dff
+        //   <folder>/custom/alfa.dff (or кастом/)   -> resources/sky_carshop/models/alfa.dff (own IDs 20000+)
+        // Returns the files taken out for the archive.
+        std::vector<Item> MapModelFolders(std::vector<Item>& files, size_t& custom, size_t& skins)
+        {
+            std::vector<Item> archive;
+            std::vector<Item> kept;
+            custom = skins = 0;
+            for (Item& item : files)
+            {
+                const std::wstring extension = LowerW(item.path.extension().wstring());
+                if (extension != L".dff" && extension != L".txd" && extension != L".col")
+                {
+                    kept.push_back(std::move(item));
+                    continue;
+                }
+
+                const std::string lower = Lower(item.name);
+                const size_t      slash = lower.find('/');
+                if (slash == std::string::npos)
+                {
+                    archive.push_back(std::move(item));
+                    continue;
+                }
+
+                if (lower.find('/', slash + 1) == std::string::npos)
+                {
+                    const std::wstring folder = LowerW(Widen(item.name.substr(0, slash)));
+                    std::string        resource;
+                    if (folder == L"custom" || folder == L"кастом" || folder == L"vehicles" || folder == L"машины")
+                        resource = "sky_carshop";
+                    else if (folder == L"skins" || folder == L"скины")
+                        resource = "sky_skins";
+                    if (!resource.empty())
+                    {
+                        item.name = "resources/" + resource + "/models/" + item.name.substr(slash + 1);
+                        (resource == "sky_skins" ? skins : custom)++;
+                    }
+                }
+                kept.push_back(std::move(item));
+            }
+            const auto byName = [](const Item& a, const Item& b) { return Lower(a.name) < Lower(b.name); };
+            std::sort(kept.begin(), kept.end(), byName);
+            std::sort(archive.begin(), archive.end(), byName);
+            files = std::move(kept);
+            return archive;
+        }
+
         // ------------------------------------------------------------ what was built last time
 
         struct FileRecord
@@ -1548,19 +1652,16 @@ namespace sky
                 reporter.Log(L"ВНИМАНИЕ: этих файлов нет ни в пакетах, ни на диске, игра упадёт при загрузке:" + list(missing));
         }
 
-        // Packages in the dlc folder that the studio made (by the record of the last build or by the names
-        // it gives) but that no current record points at. Lower case names.
-        std::set<std::wstring> StalePackages(const Settings& settings, const Content& content, const State& state, const std::set<std::wstring>& before)
+        // Packages in the dlc folder that this content folder built before (by the record of its last build)
+        // but that no current record points at. Lower case names.
+        // Only what this content folder built: a package with a studio name that came from elsewhere
+        // (the main sky_project.skydlc copied in, another content folder) is never removed.
+        std::set<std::wstring> StalePackages(const Settings& settings, const Content&, const State& state, const std::set<std::wstring>& before)
         {
             if (state.packages.empty())
                 return {};  // the studio has not built into this folder
 
-            std::set<std::wstring> ours = before;
-            ours.insert(LowerW(SINGLE_PACKAGE));
-            ours.insert(LowerW(FILES_PACKAGE));
-            ours.insert(LowerW(PATCH_PACKAGE));
-            for (const Archive& archive : content.archives)
-                ours.insert(LowerW(archive.PackageName()));
+            const std::set<std::wstring>& ours = before;
 
             std::set<std::wstring> used;
             for (const auto& [key, record] : state.packages)
@@ -1974,8 +2075,17 @@ namespace sky
             }
         }
 
-        // Packages of the studio left from an old layout
-        for (const std::wstring& name : StalePackages(settings, content, state, {}))
+        // Packages this content folder built in the other layout: the build replaces and removes them
+        std::set<std::wstring> oldLayout;
+        for (const auto& [key, record] : state.packages)
+        {
+            const std::wstring name = LowerW(record.fileName);
+            std::error_code    existsError;
+            const bool listed = std::any_of(result.packages.begin(), result.packages.end(), [&](const PackageView& v) { return LowerW(v.fileName) == name; });
+            if (!listed && name != LowerW(ExpectedPackage(settings, record.id)) && fs::is_regular_file(settings.dlc / record.fileName, existsError))
+                oldLayout.insert(name);
+        }
+        for (const std::wstring& name : oldLayout)
         {
             PackageView view;
             view.fileName = name;
@@ -2299,6 +2409,13 @@ namespace sky
             for (const std::wstring& problem : archive.problems)
                 Fail(Native(archive.id) + L": " + problem);
 
+        // A full DLC always has the game archives (gta3.img and the others). A content folder without any
+        // is a mistake: usually new models put there to add on top of the main package.
+        if (content.archives.empty())
+            Fail(L"в папке контента нет ни одной папки .img (" + settings.content.wstring() + L"). "
+                 L"Полный пакет игры так собрать нельзя. Чтобы добавить модели или файлы поверх основного пакета "
+                 L"(машины, скины, правки), используйте «Патч из папки».");
+
         fs::create_directories(settings.dlc);
 
         // Packages the studio made before this build
@@ -2419,11 +2536,23 @@ namespace sky
 
         Content content = ReadContent(folder);
 
+        size_t       skippedScripts = 0;
+        const size_t resourceFiles = MapResourceFolders(folder, content.files, skippedScripts);
+
+        size_t            customModels = 0, skinModels = 0;
+        std::vector<Item> gameModels = MapModelFolders(content.files, customModels, skinModels);
+        if (customModels || skinModels)
+            reporter.Log(L"Модели: свои машины sky_carshop — " + std::to_wstring(customModels) + L" файлов, скины sky_skins — " +
+                         std::to_wstring(skinModels));
+        if (resourceFiles || skippedScripts)
+            reporter.Log(L"Ресурсы MTA (папки с meta.xml): файлов в resources\\ — " + std::to_wstring(resourceFiles) +
+                         L", скриптов и meta.xml пропущено — " + std::to_wstring(skippedScripts) + L" (их отдаёт сервер)");
+
         for (const Archive& archive : content.archives)
             for (const std::wstring& problem : archive.problems)
                 Fail(Native(archive.id) + L": " + problem);
 
-        if (content.archives.empty() && content.files.empty())
+        if (content.archives.empty() && content.files.empty() && gameModels.empty())
             Fail(L"в папке нет файлов: " + folder.wstring());
 
         // A model outside an archive and outside resources\ is never opened by the game
@@ -2448,6 +2577,25 @@ namespace sky
         const std::wstring package = L"zz_" + name + L".skydlc";
         if (LowerW(package) == LowerW(PATCH_PACKAGE))
             Fail(L"имя zz_patch занято патчем студии, переименуйте папку");
+
+        // Models at the root of the folder: an archive of the patch that replaces the game models by name
+        if (!gameModels.empty())
+        {
+            Archive archive;
+            archive.id = "models/zz_" + Narrow(name) + ".img";
+            archive.dir = folder;
+            for (Item& item : gameModels)
+            {
+                if (!IsValidImgName(item.name))
+                    Fail(L"«" + Widen(item.name) + L"»: имя не подходит для архива игры (латиница, до 23 символов)");
+                if ((item.size + SECTOR - 1) / SECTOR > 0xFFFF)
+                    Fail(L"«" + Widen(item.name) + L"»: файл больше 128 МБ, архив игры такой не вместит");
+                archive.items.push_back(std::move(item));
+            }
+            reporter.Log(L"Замена моделей игры: " + std::to_wstring(archive.items.size()) + L" файлов в архиве " + Native(archive.id) +
+                         L" (клиент подключит его раньше основных архивов)");
+            content.archives.push_back(std::move(archive));
+        }
 
         std::vector<ImgPart> imgs;
         for (Archive& archive : content.archives)
