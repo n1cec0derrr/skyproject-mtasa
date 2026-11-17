@@ -1110,6 +1110,7 @@ void CClientGame::DoPulsePostFrame()
     m_pPlayerMap->DoRender();
     m_pManager->DoRender();
     DoPulses();
+    CheckAddressSpace();
 
     // If we're supposed to show netstat, draw them infront of everything else
     if (m_bShowNetstat)
@@ -6817,6 +6818,60 @@ void CClientGame::RestreamWorld()
 
     g_pGame->GetStreaming()->RemoveBigBuildings();
     g_pGame->GetStreaming()->ReinitStreaming();
+}
+
+// Sky Project: how much of the 4 GB of the 32-bit process is taken (reserved or committed)
+uint64_t CClientGame::GetUsedAddressSpace()
+{
+    MEMORYSTATUSEX status = {};
+    status.dwLength = sizeof(status);
+    if (!GlobalMemoryStatusEx(&status))
+        return 0;
+    return status.ullTotalVirtual - status.ullAvailVirtual;
+}
+
+// Sky Project: free memory taken by the map.
+// Normally the game's own cleanup (least recently drawn models first, what is on screen stays).
+// When the process is close to the end of its address space that is not enough: buildings, their vertex
+// buffers and textures are counted only partly in the streaming memory, so the whole map is unloaded and
+// loaded again, as the old Sky client did. It blinks, but the game does not run out of memory.
+void CClientGame::FreeMapMemory(bool emergency)
+{
+    constexpr uint64_t HARD_LIMIT = 3200ull * 1024 * 1024;
+
+    const uint32_t available = static_cast<uint32_t>(g_pCore->GetStreamingMemory());
+    if (available != 0)
+        g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
+
+    if (emergency || GetUsedAddressSpace() > HARD_LIMIT)
+    {
+        g_pGame->GetStreaming()->RemoveBigBuildings();
+        g_pGame->GetStreaming()->ReinitStreaming();
+        m_lastEmergencyMapFlush = GetTickCount64_();
+    }
+}
+
+// Sky Project: once a second; near the end of the address space the map memory is freed by the client
+// itself, whatever the server scripts do. A crash "Out of Memory" is worse than a blink of the map.
+void CClientGame::CheckAddressSpace()
+{
+    constexpr uint64_t EMERGENCY_LIMIT = 3500ull * 1024 * 1024;
+
+    static uint64_t lastCheck = 0;
+    const uint64_t  now = GetTickCount64_();
+    if (now - lastCheck < 1000)
+        return;
+    lastCheck = now;
+
+    if (now - m_lastEmergencyMapFlush < 10000)
+        return;
+
+    const uint64_t used = GetUsedAddressSpace();
+    if (used > EMERGENCY_LIMIT)
+    {
+        WriteDebugEvent(SString("Sky: address space %u MB, emergency map memory cleanup", static_cast<unsigned>(used / 1048576)));
+        FreeMapMemory(true);
+    }
 }
 
 void CClientGame::ReinitMarkers()

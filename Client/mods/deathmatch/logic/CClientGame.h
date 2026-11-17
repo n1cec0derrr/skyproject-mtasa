@@ -466,6 +466,12 @@ public:
     bool TriggerBrowserRequestResultEvent(const std::unordered_set<SString>& newPages);
     void RestreamModel(unsigned short usModel);
     void RestreamWorld();
+
+    // Sky Project: the address space the process uses, and the map memory cleanup
+    static uint64_t GetUsedAddressSpace();
+    void            FreeMapMemory(bool emergency);
+    void            CheckAddressSpace();
+    uint64_t        m_lastEmergencyMapFlush = 0;
     void ReinitMarkers();
 
     void OnWindowFocusChange(bool state);
