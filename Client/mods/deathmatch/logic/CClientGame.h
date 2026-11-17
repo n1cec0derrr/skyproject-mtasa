@@ -467,8 +467,8 @@ public:
     void RestreamModel(unsigned short usModel);
     void RestreamWorld();
 
-    // Sky Project: the address space the process uses, and the map memory cleanup
-    static uint64_t GetUsedAddressSpace();
+    // Sky Project: free address space of the process, and the map memory cleanup
+    static uint64_t GetFreeAddressSpace();
     void            FreeMapMemory(bool emergency);
     void            CheckAddressSpace();
     uint64_t        m_lastEmergencyMapFlush = 0;

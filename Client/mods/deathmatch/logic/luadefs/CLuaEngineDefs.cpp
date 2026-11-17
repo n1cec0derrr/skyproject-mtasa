@@ -93,7 +93,7 @@ bool EngineRestreamModel(std::uint32_t modelId) {
 // and the whole map vanished and loaded again. Now the game's own cleanup runs, the one it uses when
 // memory is full: models not drawn for the longest time go first, then the ones behind the camera.
 // What is on screen stays. Frees down to 60% of the streaming memory.
-// Near the end of the address space (over 3.2 GB) the whole map is unloaded and loaded again, as before:
+// When less than 300 MB of address space is left the whole map is unloaded and loaded again, as before:
 // the gentle cleanup alone let the process run out of memory while flying.
 bool EngineRestreamMap() {
     g_pClientGame->FreeMapMemory(false);

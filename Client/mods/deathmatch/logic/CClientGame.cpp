@@ -6820,30 +6820,31 @@ void CClientGame::RestreamWorld()
     g_pGame->GetStreaming()->ReinitStreaming();
 }
 
-// Sky Project: how much of the 4 GB of the 32-bit process is taken (reserved or committed)
-uint64_t CClientGame::GetUsedAddressSpace()
+// Sky Project: how much of the 4 GB of the 32-bit process is still free. Reserved memory counts as taken:
+// an allocation fails when no free address range is left, whatever is committed.
+uint64_t CClientGame::GetFreeAddressSpace()
 {
     MEMORYSTATUSEX status = {};
     status.dwLength = sizeof(status);
     if (!GlobalMemoryStatusEx(&status))
-        return 0;
-    return status.ullTotalVirtual - status.ullAvailVirtual;
+        return UINT64_MAX;
+    return status.ullAvailVirtual;
 }
 
 // Sky Project: free memory taken by the map.
 // Normally the game's own cleanup (least recently drawn models first, what is on screen stays).
-// When the process is close to the end of its address space that is not enough: buildings, their vertex
-// buffers and textures are counted only partly in the streaming memory, so the whole map is unloaded and
-// loaded again, as the old Sky client did. It blinks, but the game does not run out of memory.
+// When little address space is left that is not enough: buildings, their vertex buffers and textures are
+// counted only partly in the streaming memory, so the whole map is unloaded and loaded again, as the old
+// Sky client did. It blinks, but the game does not run out of memory.
 void CClientGame::FreeMapMemory(bool emergency)
 {
-    constexpr uint64_t HARD_LIMIT = 3200ull * 1024 * 1024;
+    constexpr uint64_t HARD_FREE_LEFT = 300ull * 1024 * 1024;
 
     const uint32_t available = static_cast<uint32_t>(g_pCore->GetStreamingMemory());
     if (available != 0)
         g_pGame->GetStreaming()->MakeSpaceFor(available / 100 * 40);
 
-    if (emergency || GetUsedAddressSpace() > HARD_LIMIT)
+    if (emergency || GetFreeAddressSpace() < HARD_FREE_LEFT)
     {
         g_pGame->GetStreaming()->RemoveBigBuildings();
         g_pGame->GetStreaming()->ReinitStreaming();
@@ -6851,25 +6852,96 @@ void CClientGame::FreeMapMemory(bool emergency)
     }
 }
 
-// Sky Project: once a second; near the end of the address space the map memory is freed by the client
+// Sky Project: who takes the address space, once in the log (the biggest allocations by owner)
+static void LogAddressSpaceOwners()
+{
+    struct SOwner
+    {
+        uint64_t committed = 0;
+        uint64_t reserved = 0;
+        DWORD    type = 0;
+    };
+    std::map<uintptr_t, SOwner> owners;
+    uint64_t                    totalCommitted = 0, totalReserved = 0;
+
+    MEMORY_BASIC_INFORMATION info;
+    for (uintptr_t address = 0x10000; address < 0xFFFF0000u && VirtualQuery(reinterpret_cast<void*>(address), &info, sizeof(info));
+         address = reinterpret_cast<uintptr_t>(info.BaseAddress) + info.RegionSize)
+    {
+        if (info.State == MEM_FREE)
+            continue;
+        SOwner& owner = owners[reinterpret_cast<uintptr_t>(info.AllocationBase)];
+        owner.type = info.Type;
+        if (info.State == MEM_COMMIT)
+        {
+            owner.committed += info.RegionSize;
+            totalCommitted += info.RegionSize;
+        }
+        else
+        {
+            owner.reserved += info.RegionSize;
+            totalReserved += info.RegionSize;
+        }
+        if (info.RegionSize == 0)
+            break;
+    }
+
+    std::vector<std::pair<uintptr_t, SOwner>> list(owners.begin(), owners.end());
+    std::sort(list.begin(), list.end(), [](const auto& a, const auto& b) {
+        return a.second.committed + a.second.reserved > b.second.committed + b.second.reserved;
+    });
+
+    WriteDebugEvent(SString("Sky: address space owners: committed %u MB, reserved %u MB, %u allocations", static_cast<unsigned>(totalCommitted >> 20),
+                            static_cast<unsigned>(totalReserved >> 20), static_cast<unsigned>(list.size())));
+    for (size_t i = 0; i < list.size() && i < 25; i++)
+    {
+        const auto& [base, owner] = list[i];
+        SString     name = owner.type == MEM_IMAGE ? "image" : owner.type == MEM_MAPPED ? "mapped" : "private";
+        if (owner.type == MEM_IMAGE)
+        {
+            char path[MAX_PATH] = {};
+            if (GetModuleFileNameA(reinterpret_cast<HMODULE>(base), path, MAX_PATH))
+                name = ExtractFilename(path);
+        }
+        WriteDebugEvent(SString("Sky:   %08X %-24s committed %4u MB, reserved %4u MB", static_cast<unsigned>(base), *name,
+                                static_cast<unsigned>(owner.committed >> 20), static_cast<unsigned>(owner.reserved >> 20)));
+    }
+}
+
+// Sky Project: once a second; when little address space is left the map memory is freed by the client
 // itself, whatever the server scripts do. A crash "Out of Memory" is worse than a blink of the map.
 void CClientGame::CheckAddressSpace()
 {
-    constexpr uint64_t EMERGENCY_LIMIT = 3500ull * 1024 * 1024;
+    constexpr uint64_t EMERGENCY_FREE_LEFT = 200ull * 1024 * 1024;
 
-    static uint64_t lastCheck = 0;
+    static uint64_t lastCheck = 0, lastLog = 0;
     const uint64_t  now = GetTickCount64_();
     if (now - lastCheck < 1000)
         return;
     lastCheck = now;
 
+    static uint64_t firstCheck = now;
+    static bool     ownersLogged = false;
+    if (!ownersLogged && now - firstCheck >= 60000)
+    {
+        ownersLogged = true;
+        LogAddressSpaceOwners();
+    }
+
+    const uint64_t freeLeft = GetFreeAddressSpace();
+    if (now - lastLog >= 30000)
+    {
+        lastLog = now;
+        WriteDebugEvent(SString("Sky: address space free %u MB, streaming %u MB", static_cast<unsigned>(freeLeft / 1048576),
+                                static_cast<unsigned>(g_pGame->GetStreaming()->GetMemoryUsed() / 1048576)));
+    }
+
     if (now - m_lastEmergencyMapFlush < 10000)
         return;
 
-    const uint64_t used = GetUsedAddressSpace();
-    if (used > EMERGENCY_LIMIT)
+    if (freeLeft < EMERGENCY_FREE_LEFT)
     {
-        WriteDebugEvent(SString("Sky: address space %u MB, emergency map memory cleanup", static_cast<unsigned>(used / 1048576)));
+        WriteDebugEvent(SString("Sky: address space free %u MB, emergency map memory cleanup", static_cast<unsigned>(freeLeft / 1048576)));
         FreeMapMemory(true);
     }
 }
